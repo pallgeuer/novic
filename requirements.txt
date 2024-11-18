@@ -1,0 +1,17 @@
+torch
+torchvision
+hydra-core
+transformers
+accelerate
+openai
+opencv-python
+optimum
+ftfy
+timm
+sentencepiece
+tabulate
+tqdm
+unidecode
+wandb
+open_clip_torch==2.23
+git+https://github.com/openai/CLIP.git

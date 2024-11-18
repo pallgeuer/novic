@@ -1,0 +1,591 @@
+# Hydra configuration parameters YAML
+
+#############
+##  Hydra  ##
+#############
+
+# Hydra defaults
+defaults:
+  - override hydra/hydra_logging: none
+  - override hydra/job_logging: none
+
+# Hydra configuration parameters
+hydra:
+  output_subdir: hydra
+  run:
+    dir: 'outputs/ovod_${now:%Y%m%d_%H%M%S}'
+  sweep:
+    dir: 'outputs/ovod_${now:%Y%m%d_%H%M%S}'
+
+###############
+##  General  ##
+###############
+
+# What action to take
+#   test_data_loader     => Test the loading and iteration of an embedding dataset via a data loader
+#   test_embed_cache     => Test the writing and loading of some embedding cache datasets
+#   embedder_zero_shot   => Evaluate the zero-shot classification performance of a pure image-text embedder
+#   cache_noun_dataset   => Generate a noun dataset cache or ensure it already exists
+#   convert_noun_dataset => Convert a noun dataset to an embedding cache dataset
+#   cache_noun_multiset  => Generate a multi-target embedding cache from the prompts and nouns of a noun dataset (ignores hypernyms)
+#   cache_captions       => Convert a captions JSON to an embedding cache within the context of a noun dataset
+#   cache_cls            => Convert a classification dataset to an embedding cache
+#   cache_images         => Convert images to a target-less embedding cache
+#   merge_caches         => Convert multiple embedding caches into a single embedding cache
+#   train                => Train an embedding decoder model on an embedding dataset
+#   fix_checkpoints      => Fix all legacy model checkpoint(s) that do not contain their trained vocabulary
+#   eval                 => Evaluate embedding decoder model checkpoint(s) on embedding dataset(s)
+#   eval_cls             => Evaluate embedding decoder model checkpoint(s) directly on an image classification dataset
+#   eval_cls_decoding    => Evaluate embedding decoder model checkpoint(s) on image classification dataset(s) with various decoding strategies
+#   infer                => Inference embedding decoder model checkpoint(s) on custom image/text data
+#   format_preds         => Retrieve run data from prediction JSONs and format it as a table
+#   format_wandb         => Retrieve run data from wandb and format it as a table
+#   collect_wiki_images  => Collect a folder of Wikipedia images based on the noun dataset
+#   sample_images        => Sample images from a directory (potentially using a CLIP model to weight topics)
+action: train
+# PyTorch device (cpu, cuda, cuda:<ID>)
+device: cuda
+# Whether to allow use of TF32 tensor cores
+allow_tf32: True
+# Whether to use cuDNN benchmark mode
+cudnn_bench: True
+# Whether to use determinism (Note: The embedder is not expected to be deterministic even if this is set)
+determ: False
+# Manual seed if using determinism (>=1)
+determ_seed: 1
+# Whether to perform a dry run for those actions that support it (e.g. fix_checkpoints)
+dry_run: False
+
+#############
+##  Wandb  ##
+#############
+
+# Enable wandb logging
+wandb: True
+# Wandb project name
+wandb_project: ovod
+# Wandb entity
+wandb_entity: null
+# Wandb group
+wandb_group: null
+# Wandb job type
+wandb_job_type: null
+# Wandb run name
+wandb_name: null
+# Comma-separated list of wandb tags
+wandb_tags: null
+
+################
+##  Embedder  ##
+################
+
+# Embedder model to use
+# Before using an embedder model:
+#   - Check whether by chance it was trained on bfloat16 instead of float16, and set embedder_bf16=true if so (relevant for AMP).
+#   - Consider whether the model works with the transformers backend (or if someone else on huggingface has released it for transformers, e.g. ikala/ViT-SO400M-14-SigLIP-384-hf), as this in general seems to be faster for the text size, although slower for the image side (which is actually the more important speed).
+#   - Run a validation performance check on Food101 and ImageNet1K
+#   - Run a text embedding speed check and an image embedding speed check
+#   - For EVERY embedding dataset (noun dataset or cached) you want to use for training or evaluation, run the following two checks with the EXACT conditions in use (read and VERIFY all console output):
+#     - Test data loader with test_training=False, test_consistent=True, and if using a noun dataset then noun_recache=True
+#     - Test data loader with test_training=True, and test_consistent=True
+#     - Test data loader with test_training=True to check the data loading speed
+# Table columns:
+#   Dim = Embedding vector size/dimension
+#   ZS Perf = Average zero-shot performance on 35 classification datasets (https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_classification_results.csv, AMP https://github.com/mlfoundations/open_clip/issues/171#issuecomment-1254067251)
+#   IN Perf = ImageNet1K performance measured by OpenCLIP (https://github.com/mlfoundations/open_clip/blob/main/docs/openclip_classification_results.csv)
+#   Text Speed = Indicative text embedding cache creation speed in USIDs per second (vocab thres 9, batch size 512)
+#   Img Speed = Indicative image embedding speed in images per second (IN1K-Food101 validation, batch size 256, 8 shuffled dataloader workers)
+#   Food101, IN1K = Validation classification performance on Food101, ImageNet1K (batch size 256)
+# General test conditions: RTX A6000, AMP float16 (unless otherwise noted), no compile, no optimum library, OpenCLIP 2.23
+# Regex: ^.*((openai|openclip|transformers):[^ ]*).*$ --> \1, then Edit->Reverse Lines, then \n --> <space>
+# +----------+----------------------------------------------------------------------+---+------+---------+---------+------------+----------------+---------+--------+---------------------------------------+
+# | Source   | Embedder Spec                                                        | * |  Dim | ZS Perf | IN Perf | Text Speed |    Img Speed   | Food101 |  IN1K  | Notes                                 |
+# +----------+----------------------------------------------------------------------+---+------+---------+---------+------------+----------------+---------+--------+---------------------------------------+
+# | Apple    | openclip:apple/DFN5B-CLIP-ViT-H-14-378                               | * | 1024 |  70.90% |  84.37% | 1.10 kid/s | 56.3-56.1 id/s |  96.19% | 84.34% |                                       |
+# | OpenCLIP | openclip:timm/eva02_enormous_patch14_plus_clip_224.laion2b_s9b_b144k |   | 1024 |  69.80% |  82.01% | 0.69 kid/s | 38.1-38.1 id/s |  94.94% | 82.01% |                                       |
+# | Apple    | openclip:apple/DFN5B-CLIP-ViT-H-14                                   | * | 1024 |  69.72% |  83.44% | 1.10 kid/s |  173- 173 id/s |  95.69% | 83.45% |                                       |
+# | OpenCLIP | openclip:rwightman/ViT-bigG-14-CLIPA-datacomp1B                      |   | 1280 |  68.71% |  82.70% | 1.56 kid/s | 75.9-76.0 id/s |  95.81% | 82.69% |                                       |
+# | OpenCLIP | openclip:timm/ViT-SO400M-14-SigLIP                                   | * | 1152 |  68.19% |  82.03% | 3.19 kid/s |  300- 300 id/s |  95.56% | 82.01% |                                       |
+# | OpenCLIP | openclip:timm/eva02_enormous_patch14_clip_224.laion2b_s4b_b115k      |   | 1024 |  67.25% |  81.96% | 1.24 kid/s | 37.8-37.8 id/s |  95.22% | 81.94% |                                       |
+# | Apple    | openclip:apple/DFN2B-CLIP-ViT-L-14                                   | * |  768 |  67.03% |  81.41% | 2.87 kid/s |  325- 324 id/s |  94.52% | 81.36% |                                       |
+# | OpenCLIP | transformers:laion/CLIP-ViT-bigG-14-laion2B-39B-b160k                |   | 1280 |  66.94% |  80.09% | 2.96 kid/s | 73.3-73.3 id/s |  93.03% | 80.11% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-bigG-14-laion2B-39B-b160k                    |   | 1280 |  66.94% |  80.09% | 0.68 kid/s | 76.0-76.1 id/s |  93.02% | 80.09% |                                       |
+# | OpenCLIP | openclip:rwightman/ViT-H-14-CLIPA-datacomp1B                         |   | 1024 |  66.88% |  81.52% | 2.71 kid/s |  193- 192 id/s |  95.51% | 81.53% |                                       |
+# | Facebook | transformers:facebook/metaclip-h14-fullcc2.5b                        |   | 1024 |  66.84% |  80.51% | 4.74 kid/s |  162- 162 id/s |  94.21% | 80.50% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K                   | * |  768 |  66.74% |  79.21% | 3.21 kid/s |  366- 364 id/s |  94.45% | 79.17% |                                       |
+# | OpenCLIP | transformers:laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K               |   |  768 |  66.74% |  79.21% | 10.5 kid/s |  316- 315 id/s |  94.43% | 79.17% |                                       |
+# | OpenCLIP | openclip:rwightman/ViT-L-14-CLIPA-datacomp1B                         |   |  768 |  65.77% |  79.57% | 6.31 kid/s |  370- 368 id/s |  94.18% | 79.58% |                                       |
+# | OpenCLIP | openclip:timm/ViT-L-16-SigLIP-256                                    | * | 1024 |  65.34% |  80.45% | 1.43 kid/s |  414- 413 id/s |  94.61% | 80.45% |                                       |
+# | OpenCLIP | openclip:timm/eva02_large_patch14_clip_224.merged2b_s4b_b131k        |   |  768 |  65.02% |  79.77% | 3.21 kid/s |  220- 220 id/s |  93.37% | 79.78% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-g-14-laion2B-s34B-b88K                       |   | 1024 |  64.54% |  78.47% | 1.24 kid/s |  126- 126 id/s |  92.31% | 78.47% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-H-14-laion2B-s32B-b79K                       |   | 1024 |  64.42% |  77.96% | 1.24 kid/s |  191- 191 id/s |  92.75% | 77.95% |                                       |
+# | OpenCLIP | transformers:laion/CLIP-ViT-H-14-laion2B-s32B-b79K                   |   | 1024 |  64.42% |  77.96% | 5.17 kid/s |  178- 178 id/s |  92.76% | 77.92% |                                       |
+# | OpenCLIP | openclip:timm/ViT-B-16-SigLIP-384                                    | * |  768 |  63.49% |  78.49% | 3.45 kid/s |  486- 484 id/s |  93.61% | 78.49% |                                       |
+# | OpenAI   | transformers:openai/clip-vit-large-patch14                           |   |  768 |  62.37% |  75.54% | 9.64 kid/s |  285- 284 id/s |  93.06% | 75.56% |                                       |
+# | OpenAI   | openai:ViT-L/14                                                      |   |  768 |  62.37% |  75.54% | 2.41 kid/s |  326- 325 id/s |  93.06% | 75.54% |                                       |
+# | OpenCLIP | openclip:timm/ViT-B-16-SigLIP                                        | * |  768 |  62.06% |  76.04% | 3.45 kid/s | 1012-1313 id/s |  91.55% | 76.05% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-B-16-DataComp.XL-s13B-b90K                   | * |  512 |  61.78% |  73.49% | 4.84 kid/s |  993-1298 id/s |  90.46% | 73.48% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-B-32-256x256-DataComp-s34B-b86K              | * |  512 |  61.33% |  72.81% | 4.88 kid/s |  947-1186 id/s |  89.02% | 72.78% |                                       |
+# | OpenCLIP | openclip:timm/eva02_base_patch16_clip_224.merged2b_s8b_b131k         |   |  512 |  58.91% |  74.72% | 4.83 kid/s |  858- 852 id/s |  89.50% | 74.73% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-B-32-DataComp.XL-s13B-b90K                   |   |  512 |  58.31% |  69.17% | 4.85 kid/s | 1016-1279 id/s |  86.34% | 69.20% |                                       |
+# | OpenCLIP | transformers:laion/CLIP-ViT-B-32-laion2B-s34B-b79K                   |   |  512 |  57.01% |  66.56% | 12.2 kid/s |  658- 814 id/s |  82.65% | 66.62% |                                       |
+# | OpenCLIP | openclip:laion/CLIP-ViT-B-32-laion2B-s34B-b79K                       |   |  512 |  57.01% |  66.56% | 4.83 kid/s | 1012-1298 id/s |  82.65% | 66.60% |                                       |
+# | OpenAI   | transformers:openai/clip-vit-base-patch16                            |   |  512 |  56.57% |  68.34% | 12.0 kid/s |  676- 801 id/s |  88.84% | 68.36% |                                       |
+# | OpenAI   | openai:ViT-B/16                                                      |   |  512 |  56.57% |  68.34% | 3.33 kid/s |  984-1241 id/s |  88.85% | 68.34% |                                       |
+# | ALIGN    | transformers:kakaobrain/align-base                                   |   |  640 |       - |       - | 10.2 kid/s |  541- 540 id/s |  82.93% | 64.98% |                                       |
+# | OpenAI   | transformers:openai/clip-vit-base-patch32                            |   |  512 |  52.65% |  63.32% | 11.9 kid/s |  685- 795 id/s |  83.94% | 63.38% |                                       |
+# | OpenAI   | openai:ViT-B/32                                                      |   |  512 |  52.65% |  63.32% | 3.33 kid/s |  752- 993 id/s |  83.93% | 63.36% |                                       |
+# +----------+----------------------------------------------------------------------+---+------+---------+---------+------------+----------------+---------+--------+---------------------------------------+
+embedder_spec: openclip:timm/ViT-B-16-SigLIP
+# Whether to enable AMP for the embedder model (if both with or without AMP are supported by the model)
+embedder_amp: True
+# If AMP is enabled for an embedder model, whether to use bfloat16 instead of float16
+embedder_amp_bf16: False
+# Whether the embedder model should be compiled using torch.compile (can expect 5-30% speed boost on a modern GPU depending on model size and type, at the cost of 1-2 minutes compilation time)
+embedder_compile: False
+# Whether to use the Hugging Face optimum library for embedders running via the transformers backend
+embedder_optimum: False
+# Nominal embedder batch size for pure tokenization
+batch_size_token: 2048
+# Nominal embedder batch size for pure embedding (tokenization + inference)
+batch_size_embed: 512
+# Nominal embedder batch size for image embedding
+batch_size_image: 256
+
+#########################
+##  Embedding Dataset  ##
+#########################
+
+# Which embedding dataset to use for any actions that need one ('NounDataset' or path to an embedding cache file)
+embedding_dataset: NounDataset
+# Which embedding datasets to use for any actions that need multiple (see embedding_dataset)
+embedding_datasets: []
+# Batch size to use for loading the dataset
+batch_size: 512
+# Number of worker processes to use for loading the dataset (0 = No worker processes)
+dataset_workers: 8
+
+####################
+##  Noun Dataset  ##
+####################
+
+# Vocabulary JSON file path
+vocab_path: $SOURCE/data/object_nouns.json
+# Eliminate all entries from the vocabulary with total singular plus plural frequency of less or equal to this value
+vocab_thres: 0
+# Prompt JSON file path
+prompt_path: $SOURCE/data/prompts.json
+# Prompt template collections to use
+prompt_collection: ImageNet1K | CIFAR
+# Hypernym template collections to use
+hypernym_collection: None
+# Whether the noun dataset should return text strings from __getitem__, or rather directly embedding vectors and token IDs with the use of a cache file
+noun_cache: True
+# Whether to force regeneration of any existing cache file
+noun_recache: False
+# Path to noun cache file directory (it is created if it does not exist, but the parent directory must already exist)
+noun_cache_dir: $SOURCE/cache/noun_dataset
+
+###############################
+##  Embedding Cache Dataset  ##
+###############################
+
+# Default directory relative to which to attempt to resolve embedding cache paths if the cache path resolved relative to the current working directory does not exist
+embedding_cache_dir: $SOURCE/cache/embedding_cache
+# Whether loaded embedding caches should use strict compatibility checking (always recommended, only set to False if you know absolutely for sure what effect that's going to have)
+strict_embedder: True
+# Path to save a new embedding dataset cache to for any actions that create one (resolved relative to embedding_cache_dir if purely a basename is provided, avoid this using ./ if necessary)
+save_embedding_cache: ''
+
+##############################
+##  Classification Dataset  ##
+##############################
+
+# Image classification dataset name (available: MNIST, FashionMNIST, CIFAR10, CIFAR100, Food101, TinyImageNet, Imagenette, Imagewoof, ImageNet1K)
+cls_dataset: ImageNet1K
+# Image classification dataset names to use for any actions that allow multiple (see cls_dataset)
+cls_datasets: []
+# Image classification dataset root directory (set up datasets as described in https://github.com/pallgeuer/ReLish/blob/master/benchmark/commands.txt)
+cls_dataset_root: ~/Datasets
+# Which split of the image classification dataset to use (train = Training split, valid = Validation split, all = Training + validation splits)
+cls_split: valid
+
+#############
+##  Model  ##
+#############
+
+# Checkpoint path to load the model and potentially further information from (if this is a relative path that does not exist then it is attempted to resolve the path relative to the hydra output parent directory)
+load_model: ''
+# Checkpoint paths to load if processing multiple models (can be model files or directories containing model files, may for convenience be overridden by a single string, load_model value is also included if provided)
+load_models: []
+# Maximum number of latest checkpoints to load from a directory (0 = No maximum)
+load_models_dirnum: 1
+# Which type of decoder model to use
+model: PrefixedIterDecoder
+# TargetConfig: Whether target tokenizations should include a start token
+with_start_token: False
+# TargetConfig: Whether target tokenizations should include an end token
+with_end_token: True
+# TargetConfig: Whether target tokenizations should use compact IDs (sequential renumbering of only the token IDs that are actually used, pad token = 0, end token = 0 if with end token, start token = 1 if with start token)
+compact_ids: True
+# TargetConfig: Whether all batches should use the same fixed token length
+fixed_token_length: False
+# TargetConfig: Whether the fixed token length (if fixed_token_length) should be auto-calculated from the dataset (True) or taken from the tokenizer context length (False)
+auto_fixed_token_length: True
+# TargetConfig: Whether the padding locations should be masked and thereby not contribute to the training loss
+use_masks: True
+# DataConfig: Whether targets should be weighted, in particular affecting how much each target contributes to the training loss (null = Auto-determined from dataset)
+use_weights: False
+# DataConfig: Whether multiple targets per embedding should be used in the model (null = Auto-determined from dataset)
+multi_target: False
+# DataConfig: Whether the multi-target dimension (if present) should come before the batch dimension
+multi_first: False
+# DataConfig: Whether the number of targets per embedding should be fixed (forced to True if multi_target is False)
+fixed_multi_length: False
+# Whether to enable automatic mixed-precision for the decoder model
+amp: False
+# If AMP is enabled for the decoder model, whether to use bfloat16 instead of float16
+amp_bf16: True
+# Whether to quantize the vocab size to the next highest multiple of a power of 2 for computational efficiency purposes
+vocab_quant: False
+# Number of trailing end tokens to include in the non-generation prediction loss (must be >= 1)
+num_end_loss: 1
+# Amount of label smoothing when computing the cross entropy loss (0 = Disable label smoothing)
+label_smoothing: 0.0
+# Transformer hidden dimension
+hidden_dim: 512
+# Scaler specifying how much multiplicatively larger the feedforward dimension is than the hidden dimension
+feedfwd_scale: '1/4'
+# String specifying how to compute the feature size of the embedding vector MLP hidden layer, e.g. 'none', 'min', 'max', 'amean' (arithmetic mean), 'gmean' (geometric mean)
+mlp_hidden_layer: none
+# Whether to incorporate biases in case of a hidden layer in the embedding vector MLP (the last linear never has a bias as this is taken up by the positional embedding)
+mlp_hidden_bias: False
+# Whether in case of a hidden layer in the embedding vector MLP a normalization layer should be used prior to the activation function
+mlp_hidden_norm: False
+# Activation module type to use after the first linear layer in the embedding vector MLP in case of a hidden layer (e.g. 'relu', 'gelu' or 'tanh', see utils.get_activation_gain)
+mlp_hidden_activation: gelu
+# Dropout probability of input signal to first transformer layer (0 = No dropout)
+input_dropout: 0.1
+# Number of transformer layers
+num_layers: 6
+# Number of transformer attention heads (must evenly divide transformer hidden dimension)
+num_heads: 8
+# Dropout probability within each transformer layer
+layer_dropout: 0.1
+# Activation function to use within the transformer layers (e.g. 'relu' or 'gelu', see utils.get_activation_gain)
+layer_activation: gelu
+# Whether the layer norm is done prior to the attention and feedforward operations respectively in each transformer layer
+layer_norm_first: True
+# Whether to incorporate biases throughout the entire transformer layers
+layer_bias: False
+# Whether to include a bias in the logits linear layer
+logits_bias: False
+# Whether to initialise all bias parameters in all parts of the model to zero
+init_bias_zero: True
+# Initialisation mode of the MLP (default = Default PyTorch init, balanced = Balanced init to promote unitness)
+init_mlp_mode: balanced
+# Initialise the MLP and embedding to work with unit norm (True) as opposed to unit standard deviation (False)
+init_mlp_unit_norm: False
+# Initialisation mode of the transformer (default = Default PyTorch init, open = Init strategy used in OpenCLIP, balanced = Balanced init to promote unitness for layer norm first case)
+init_tfrm_mode: balanced
+# Initialise the transformer to work with unit norm (True) as opposed to unit standard deviation (False)
+init_tfrm_unit_norm: False
+# Initialise the post-transformer norm to work with unit norm (True) as opposed to unit standard deviation (False)
+init_tfrm_unit_postnorm: True
+# Whether to adjust the initial residual projection weight values for the number of layers (if not init mode default, adjustment is intended for layer norm first case)
+init_tfrm_proj_layers: True
+# Whether to initialise all transformer layer norm weights to zero (if layer norm is first then these are on the residual paths, if layer norm is not first this is unlikely to do anything useful if True, overrides init_tfrm_unit_norm if True)
+init_zero_norm: False
+# Whether to apply ReZero to initially zero out the residual paths (none = Do not use ReZero, perskip = One scale parameter per skip connection, perlayer = One scale parameter per layer)
+init_rezero_mode: none
+# PrefixedIterDecoder: Number of sequence elements the embedding vector is transformed to using an MLP in order to input it to the transformer as a prefix (must be >=1)
+mlp_seq_len: 4
+# PrefixedIterDecoder: Whether to apply weight tying between the token embedding and logits linear layer
+weight_tying: True
+# PrefixedIterDecoder: Whether to make the transformer strictly causal, meaning that even the prefix tokens are processed causally
+strictly_causal: False
+# PrefixedIterDecoder: Whether to enable the use of nested tensors for the forward pass of the transformer
+enable_nested: False
+
+################################
+##  Generation Configuration  ##
+################################
+
+# Generation configuration to use (e.g. 'greedy_k1_t1_a0_vnone_gn', 'beam_k5_t10_a0.5_vtgt0.4_gr')
+gencfg: ''
+# List of generation configurations to use (takes priority over 'gencfg' for actions that support using more than one generation configuration)
+gencfgs: []
+# Whether to use a grid of generation configurations (in addition to gencfgs)
+gencfgs_grid: False
+# Generation configuration grid sweep: Decoding method (str)
+gencfg_method: ['greedy', 'beam']
+# Generation configuration grid sweep: Top-k (integer)
+gencfg_topk: [3, 5, 10]
+# Generation configuration grid sweep: Vocab prior (str)
+gencfg_prior: ['none', 'tgt0.25', 'tgt0.5', 'tok0.25', 'tok0.5']
+# Generation configuration grid sweep: Guiding (str)
+gencfg_guide: ['plain']
+# Generation configuration grid sweep: Temperature (float)
+gencfg_tau: [0.5, 1, 2]
+# Generation configuration grid sweep: Length normalisation alpha (float)
+gencfg_alpha: [-0.2, 0, 0.2, 0.5]
+
+###############
+##  Testing  ##
+###############
+
+# Test data loader: Whether the data loader should be testing in training mode
+test_training: True
+# Test data loader: Whether to move the loaded data to the required device for testing purposes (also controls whether string data is embedded/tokenized)
+test_device: True
+# Test data loader: If test_device, whether to use data loader patching or manual data management
+test_patch: True
+# Test data loader: Whether to enable consistency checks for debugging/verification purposes
+test_consistent: False
+# Test data loader: If using noun dataset, how many USIDs to print for manual dataset checking (0 = None)
+test_print: 0
+
+########################
+## Embedder Zero-shot ##
+########################
+
+# Whether to clean the classification dataset class names
+clip_clean: False
+# Whether to use original CLIP image classification dataset-specific text prompt templates (True) or the noun dataset prompt templates for singular nouns (False)
+clip_prompts: True
+# Whether to measure the image-text modality gap between embeddings of images and their ground truth labels
+measure_gap: False
+
+###########################
+##  Cache Noun Multiset  ##
+###########################
+
+# Integer frequencies with which to combine samples generated with given target multiplicities (Index 0 = Regular noun dataset, Index 1 = Dual-target, Index 2 = Triple-target, ...)
+multi_target_freq: [1, 1]
+
+######################
+##  Cache Captions  ##
+######################
+
+# Path of the captions JSON to convert to an embedding cache (backed by a noun dataset)
+captions_path: ''
+# Maximum number of caption templates to collect per total singulars frequency/total plurals frequency
+template_multiplier: 10
+# Exact number of samples to generate per noun variant frequency (must be >= template_multiplier, caption templates are repeated across variants as required to fulfill the multiplier)
+sample_multiplier: 20
+# Stochastically print approximately this many caption samples for manual verification
+captions_print: 0
+
+####################################
+##  Cache Classification Dataset  ##
+####################################
+
+# Classification dataset class names variant to load (refers to a data/cls_class_names_{variant}.json JSON file)
+class_names_variant: clip
+
+####################
+##  Cache Images  ##
+####################
+
+# Image files/directories to cache
+images: []
+
+####################
+##  Merge Caches  ##
+####################
+
+# Whether to save targets in the cache given by save_embedding_cache (null = auto-detect, otherwise True/False)
+save_targets: null
+# Mode how to resolve the number of targets per embedding for the merged cache (min, max, or <number>)
+multi_mode: max
+
+################
+##  Training  ##
+################
+
+# Whether to load the complete training run state from a loaded checkpoint (as opposed to just the model state)
+load_train_state: True
+# If loading the training state, whether to resume the learning rate schedule (True, overrides all LR-related configs with the loaded values) or start a new schedule (False)
+load_lr_state: True
+# Number of samples per training chunk in units of the number of unique target nouns (resulting number of samples per chunk is quantized to nearest batch size)
+chunk_scale: 50
+# Minimum number of chunks to train between checkpoints
+save_every_min: 12
+# Maximum number of chunks to train between checkpoints
+save_every_max: 48
+# Minimum top-1 accuracy (%) in order to start saving checkpoints
+save_top1_min: 95.0
+# In order to trigger a checkpoint save due to a new best top-1 accuracy (%) there must have been a chunk that increased the top-1 accuracy by less than this while being greater than save_top1_min
+save_top1_delta: 0.5
+# Maximum number of training epochs (0 = No maximum epoch, internally recalculated as a maximum number of chunks)
+max_epochs: 18
+# Maximum number of training chunks (0 = No maximum chunks)
+max_chunks: 0
+# Gradient accumulation factor
+accum_factor: 8
+# Which optimizer to use (AdamW, AdamP)
+optimizer: AdamW
+# Initial learning rate
+init_lr: 1.5e-3
+# Final learning rate (if required by learning rate scheduler)
+final_lr: 0.0
+# Learning rate scheduler to use (const, cosine)
+lr_scheduler: cosine
+# Number of chunks of linear learning rate warmup (e.g. if 5 then the 6th chunk will be the first to train with full learning rate)
+lr_warmup: 0
+# AdamW optimizer beta values
+beta1: 0.9
+beta2: 0.95
+# Weight decay coefficient and whether to apply weight decay to 0D/1D parameters as well (instead of never decaying them, mainly affects layer norms, linear biases and ReZero scalars if present)
+weight_decay: 0.1
+weight_decay_1d: False
+# AdamP: Whether to use Nesterov momentum
+nesterov: True
+# Whether the model should be compiled using torch.compile
+compile: False
+# Whether to apply gradient clipping, and if so, the 2-norm across ALL parameter gradients to clip to
+gradient_clip: 1.0
+# Half-life of the loss exponential weighted average in units of chunks
+loss_ewa_halflife: 4
+# Rescale all dropout probabilities by a given factor (>=0.0) a given number of chunks (0 = Disable) before the end of training
+last_dropout_chunks: 0
+last_dropout_factor: 0.0
+# Whether to apply a mean shift to the embedding vectors during training (prior to applying noise)
+mean_shift: False
+# Path to a JSON file with 'cfg_embedder' and 'mean_shift' fields (any occurrence of $EMBEDDER in the path is replaced with the path-safe embedder spec)
+mean_shift_path: $SOURCE/data/modality_gap_$EMBEDDER.json
+# Noise scheme and parameters to apply to all embedding vectors during training
+#   ''           => No noise
+#   GaussElem    => Add Gaussian noise to each embedding vector element individually (standard deviation is such that on average a vector of norm noise_vec_norm is effectively being added to each embedding vector)
+#   GaussVec     => Add a random vector of uniformly distributed direction and Gaussian distributed norm to each embedding vector independently (standard deviation of Gaussian norm is noise_vec_norm)
+#   GaussAngle   => Rotate each embedding vector by a random angle that is Gaussian distributed with mean 0, standard deviation noise_angle_std, and clamped maximum of noise_angle_max
+#   UniformAngle => Rotate each embedding vector by a random angle that is uniformly distributed with minimum noise_angle_min and maximum noise_angle_max
+#   GaussElemUniformAngle => Mix between GaussElem (1 - noise_mix_ratio) and UniformAngle (noise_mix_ratio)
+# Note: noise_angle_min, noise_angle_max, noise_angle_std are in degrees
+noise_scheme: ''
+noise_vec_norm: 0.0
+noise_angle_min: 0.0
+noise_angle_max: 0.0
+noise_angle_std: 0.0
+noise_mix_ratio: 0.0
+
+#######################
+##  Fix Checkpoints  ##
+#######################
+
+# Whether to skip trying to load the checkpoint's device/embedder/dataset and force a vtX vocabulary with the current configs instead (see vocab_thres, load_model, load_models)
+fix_force_vtx: False
+
+##################
+##  Evaluation  ##
+##################
+
+# Whether to perform evaluation in PyTorch's model training mode (e.g. dropout enabled)
+eval_train: False
+# Whether to use guided decoding for evaluation
+eval_guided: False
+# Whether to produce debugging information (e.g. comparing target evaluation data to generated data)
+eval_debug: False
+# If supported by a particular evaluation action, only process at most this many samples (0 = No limit)
+eval_samples_max: 0
+# Whether and which evaluation images to copy to a new directory with a changed filename to indicate target and predicted classes (e.g. 'DirectValidGuidedIncorrect', 'DirectValid', 'alid')
+eval_images: ''
+# Parent directory to use for the timestamped output directory of evaluation images (see eval_images)
+eval_images_dir: $SOURCE/extras/eval_images
+
+#################
+##  Inference  ##
+#################
+
+# Whether to log inference results (i.e. print them to stdout in --> form)
+infer_log: True
+# Text(s) to embed and infer the loaded decoder models on
+infer_texts: []
+# Image path(s) to embed and infer the loaded decoder models on
+infer_images: []
+# Directory relative to which to resolve the image paths
+infer_image_dir: $SOURCE/extras/world
+# Directory for which to embed and infer the loaded decoder models on all present image files
+infer_all_images_dir: ''
+# Path to the ground truth annotations JSON for the inferenced samples
+infer_ann_json: $IMAGEDIR/_class_annotations.json
+# Whether to update the ground truth annotations JSON with entries for any missing samples
+infer_ann_json_update: False
+# Whether to use guided decoding for inference (only relevant if no generation configuration is specified)
+infer_guided: False
+# Manual specification of an embedding dataset to use the target nouns of for guided decoding (overrides any target nouns specification from the model checkpoint, 'NounDataset' or path to an embedding cache file)
+infer_guide_dataset: ''
+# Manual list of target nouns to use for guided decoding (overrides all other sources of target nouns)
+infer_guide_targets: []
+# Whether to show debugging information
+infer_debug: False
+# Whether to output a JSON file per model of prediction results
+infer_pred_json: False
+
+########################
+##  Prediction JSONs  ##
+########################
+
+# Which prediction JSONs to load
+load_pred_jsons: []
+# Directory relative to which to resolve the sample image paths
+pred_image_dir: $SOURCE/extras/world
+# Path to the ground truth annotations JSON for the prediction samples
+pred_ann_json: $IMAGEDIR/_class_annotations.json
+
+##########################
+##  Format Predictions  ##
+##########################
+
+# Type of predictions formatting to do (available: nouns_v1, model_topk_v1, model_max_v1, gencfg_model_v1)
+pfmt_type: model_topk_v1
+# Format option: If applicable, the number of top-k predictions to consider
+pfmt_topk: 3
+# Format option: If applicable, whether to show predictions model spec instead of JSON filename
+pfmt_model_spec: True
+# Format option: If applicable, sort the formatted data by the following criterion/column (e.g. 'JSON', '+model', '-0top-1%')
+pfmt_sort: ''
+
+####################
+##  Format Wandb  ##
+####################
+
+# Type of Wandb formatting to do (available: eval_gen_cls_v1, infer_v1, all_v1, all_v2)
+fmt_type: all_v2
+# Run filter: Space-separated explicit TRAINED model directories/files (e.g. 'ovod_20240323_152830 ovod_20240323_154539 ovod_20240325_104300/ovod_chunk0698_20240326_135221.train')
+fmt_models: ''
+# Run filter: Space-separated explicit TRAINED model hostname regexes (e.g. 'ovod-a-mlpod ovod-cb-mlpod ovod-c.-mlpod' => HOST, or 'aa c\[a-f\]' => ovod-HOST-mlpod, Note that [ and ] have to be escaped because of hydra config parsing but not things like \d)
+fmt_model_hosts: ''
+# Run filter: Space-separated explicit EVALUATION hostnames (e.g. 'ovod-a-mlpod ovod-eval1-mlpod' => HOST, or 'a eval1' => ovod-HOST-mlpod, or '12 13' => ovod-[a-zA-Z-]*HOST-mlpod)
+fmt_hosts: ''
+# Run filter: Minimum/maximum time ago in the past that the run was created (e.g. 1y, 2w, 5d, 6h, 1d12h)
+fmt_min_ago: ''
+fmt_max_ago: ''
+# Run filter: Minimum/maximum absolute datetime that the run was created (e.g. D20240131 or D20240201_185907, the D is to avoid auto-conversion to int)
+fmt_min_stamp: ''
+fmt_max_stamp: ''
+# In the case of a table or similar, sort the formatted data by the following criterion/column (e.g. '-ImageNet1K', 'Tag', '+model')
+fmt_sort: ''
+
+###########################
+##  Collect Wiki Images  ##
+###########################
+
+# Parent directory to use for the timestamped output directory of Wikipedia images
+wiki_collect_dir: $SOURCE/extras/wiki_images
+
+#####################
+##  Sample Images  ##
+#####################
+
+# Directory of input images to sample
+sample_input_dir: ''
+# Parent directory to use for the timestamped output directory of sampled images
+sample_output_dir: $SOURCE/extras/sampled_images
+# Number of images to sample
+sample_count: 100
+# Nouns to give special weighting to while sampling based on embedder zero-shot dot product (sample_special = Noun strings, sample_special_mean = Mean zero-shot dot product of random image-text pairs (refer to embedder_zero_shot action with measure_gap=True), sample_special_factor = Natural exponent multiplier like -5 or 5)
+sample_special: []
+sample_special_mean: 0.05
+sample_special_factor: []
+# EOF

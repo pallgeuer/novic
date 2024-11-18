@@ -1,0 +1,35 @@
+# Hydra configuration parameters YAML
+
+#############
+##  Hydra  ##
+#############
+
+# Hydra defaults
+defaults:
+  - override hydra/hydra_logging: none
+  - override hydra/job_logging: none
+
+# Hydra configuration parameters
+hydra:
+  output_subdir: hydra
+  run:
+    dir: 'outputs/caption_generation_${now:%Y%m%d_%H%M%S}'
+  sweep:
+    dir: 'outputs/caption_generation_${now:%Y%m%d_%H%M%S}'
+
+###############
+##  General  ##
+###############
+
+# Save generated captions every saving_freq nouns
+saving_freq: 100
+# Vocabulary JSON file path
+vocab_path: data/object_nouns.json
+# Caption JSON file path
+caption_path: extras/data/captions_vt1.json
+# Number of captions per API call
+num_captions_per_call: 10
+# Number of captions per frequency value
+num_captions_per_freq: 10
+# Frequency threshold to generate captions for (<=1 to generate captions for all items)
+freq_threshold: 1
