@@ -1,16 +1,21 @@
 # NOVIC: Unconstrained Open Vocabulary Image Classification
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic?p=unconstrained-open-vocabulary-image)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-1)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-1?p=unconstrained-open-vocabulary-image)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-3)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-3?p=unconstrained-open-vocabulary-image)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-2)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-2?p=unconstrained-open-vocabulary-image)
+
 **Main Author:** Philipp Allgeuer
 
-Code release corresponding to the [WACV 2025 paper](https://www.arxiv.org/abs/2407.11211):
+Code release corresponding to the [WACV 2025 paper](https://www.arxiv.org/abs/2407.11211) (also on [paperswithcode](https://paperswithcode.com/paper/unconstrained-open-vocabulary-image)):
 
 Philipp Allgeuer, Kyra Ahrens, and Stefan Wermter: *Unconstrained Open Vocabulary Image Classification: Zero-Shot Transfer from Text to Image via CLIP Inversion*
 
 ## Overview
 
-![NOVIC architecture](images/novic.png)
-
 **TL;DR:** Given an image and nothing else (i.e. no prompts or candidate labels), NOVIC can generate an accurate textual fine-grained classification label in *real-time*, with coverage of the vast majority of the English language.
+
+![NOVIC architecture](images/novic.png)
 
 NOVIC is an innovative uNconstrained Open Vocabulary Image Classifier that uses an autoregressive transformer to generatively output classification labels as language. Leveraging the extensive knowledge of CLIP models, NOVIC harnesses the embedding space to enable zero-shot transfer from pure text to images. Traditional CLIP models, despite their ability for open vocabulary classification, require an exhaustive prompt of potential class labels, restricting their application to images of known content or context. To address this, NOVIC uses an "object decoder" model that is trained on a large-scale 92M-target dataset of templated object noun sets and LLM-generated captions to always output the object noun in question. This effectively inverts the CLIP text encoder and allows textual object labels to be generated directly from image-derived embedding vectors, without requiring any a priori knowledge of the potential content of an image. NOVIC has been tested on a mix of manually and web-curated datasets, as well as standard image classification benchmarks, and achieves fine-grained prompt-free prediction scores of up to 87.5%, a strong result considering the model must work for any conceivable image and without any contextual clues.
 
@@ -20,11 +25,11 @@ At the heart of the NOVIC architecture is the *object decoder*, which effectivel
 
 ## Datasets
 
-In addition to a synthetic textual multiset dataset generated from the [Object Noun Dictionary](https://github.com/pallgeuer/object_noun_dictionary), caption-object pairs were also generated using an LLM, and are available here:
+In addition to a synthetic textual multiset dataset generated from the [Object Noun Dictionary](https://github.com/pallgeuer/object_noun_dictionary), caption-object pairs were also generated using an LLM, and are available here (see also [NOVIC Caption-Object Data](https://paperswithcode.com/dataset/novic-caption-object-data) on paperswithcode):
 
 * [LLM-generated captions dataset (JSON)](https://www2.informatik.uni-hamburg.de/wtm/corpora/novic/captions_dataset.json): For more information, refer to the [paper](https://www.arxiv.org/abs/2407.11211) and the [dataset page](https://www.inf.uni-hamburg.de/en/inst/ab/wtm/research/corpora.html#novic)
 
-Three datasets were also constructed and annotated for the purpose of testing open vocabulary image classification performance. These are available here:
+Three datasets were also constructed and annotated for the purpose of testing open vocabulary image classification performance. These are available here (see also [OVIC Datasets](https://paperswithcode.com/dataset/ovic-datasets) on paperswithcode):
 
 * [World](https://www2.informatik.uni-hamburg.de/wtm/corpora/ovic_datasets/world_dataset.zip): 272 images of which the grand majority are originally sourced (have never been on the internet) from 10 countries by 12 people, with an active focus on covering as wide and varied concepts as possible, including unusual, deceptive and/or indirect representations of objects,
 * [Wiki](https://www2.informatik.uni-hamburg.de/wtm/corpora/ovic_datasets/wiki_dataset.zip): 1000 Wikipedia lead images sampled from a scraped pool of 18K,
