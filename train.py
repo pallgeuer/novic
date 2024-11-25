@@ -55,7 +55,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = '8'        # Set NumExpr threads to the valu
 tabulate.PRESERVE_WHITESPACE = True
 
 # Constants
-MODEL_CFGS = {'vocab_quant', 'hidden_dim', 'feedfwd_scale', 'mlp_hidden_layer', 'mlp_hidden_bias', 'mlp_hidden_norm', 'mlp_hidden_activation', 'num_layers', 'num_heads', 'layer_activation', 'layer_norm_first', 'layer_bias', 'logits_bias', 'mlp_seq_len', 'weight_tying', 'strictly_causal', 'enable_nested', 'cross_encoder', 'num_encoder_layers'}  # All of these cfg.* configs MUST satisfy that they are ONLY ever referenced within this method, and can under no reasonable circumstances have a different value from training to evaluation
+MODEL_CFGS = {'vocab_quant', 'hidden_dim', 'feedfwd_scale', 'mlp_hidden_layer', 'mlp_hidden_bias', 'mlp_hidden_norm', 'mlp_hidden_activation', 'num_layers', 'num_heads', 'layer_activation', 'layer_norm_first', 'layer_bias', 'logits_bias', 'mlp_seq_len', 'weight_tying', 'strictly_causal', 'enable_nested', 'cross_encoder', 'num_encoder_layers'}  # All of these cfg.* configs MUST satisfy that they are ONLY ever referenced with the load_decoder_model() method, and can under no reasonable circumstances have a different value from training to evaluation
 IGNORE_CFG_DIFFS = {*MODEL_CFGS, 'action', 'wandb', 'load_model', 'load_train_state', 'load_lr_state', 'load_models', 'load_models_dirnum', 'eval_train_top1', 'eval_cls_datasets', 'eval_train', 'infer_texts', 'infer_images', 'infer_image_dir'}
 IMAGE_DIR_TAG = '$IMAGEDIR'
 SOURCE_TAG = '$SOURCE'
@@ -448,7 +448,7 @@ class PredictionScorer:
 
 	@classmethod
 	def format_score_pct(cls, score: float, total: int) -> str:
-		return format_ratio_str(score / total)
+		return format_ratio_str(score / total) if total != 0 else format_percent_str(math.nan)
 
 #
 # Action: Test data loader

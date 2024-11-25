@@ -19,12 +19,13 @@ def parse_arguments():
 def load_predictions(pred_dir):
 	pred_data = {}
 	for entry in os.listdir(pred_dir):
-		with open(os.path.join(pred_dir, entry), 'r') as file:
-			json_data = json.load(file)
-			assert len(json_data['predictions']) == 1
-			preds = tuple(item[0] for item in next(iter(json_data['predictions'].values()))['pred'])
-			assert len(json_data['samples']) == len(preds)
-			pred_data[entry] = {sample: pred for sample, pred in zip(json_data['samples'], preds, strict=True)}
+		if entry.endswith('.json'):
+			with open(os.path.join(pred_dir, entry), 'r') as file:
+				json_data = json.load(file)
+				assert len(json_data['predictions']) == 1
+				preds = tuple(item[0] for item in next(iter(json_data['predictions'].values()))['pred'])
+				assert len(json_data['samples']) == len(preds)
+				pred_data[entry] = {sample: pred for sample, pred in zip(json_data['samples'], preds, strict=True)}
 	return pred_data
 
 def load_annotations(ann_file, category_scores):
