@@ -309,10 +309,12 @@ extras/specificity/specificity_scores.py --specificity_file extras/specificity/_
 
 ## Example Predictions
 
-Below are some example predictions from the [WACV 2025 paper](https://www.arxiv.org/abs/2407.11211) for World-H (first image) and Wiki-H (second image). *SigLIP NOVIC (FT2)* refers to the checkpoint `ovod_20240610_105233`, *DFN-5B NOVIC (FT0)* refers to the checkpoint `ovod_20240628_142131`, and Tag2Text and RAM are related work (demonstrating a lack of diversity and specificity in the predicted labels, as well as often missing the true intention of the image, even if at times it can still be considered *primary*). Possible classification scores are *correct primary* (P) in green, *correct secondary* (S), *close primary* (CP), *close secondary* (CS), and *incorrect* (I) in red. Invalid words or combinations, as well as non-nouns, are considered to be *incorrect*.
+Below are some example predictions from the [WACV 2025 paper](https://www.arxiv.org/abs/2407.11211) for World-H and Wiki-H (click on either image for higher resolution). *SigLIP NOVIC (FT2)* refers to the checkpoint `ovod_20240610_105233`, *DFN-5B NOVIC (FT0)* refers to the checkpoint `ovod_20240628_142131`, and Tag2Text and RAM are related work (demonstrating a lack of diversity and specificity in the predicted labels, as well as often missing the true intention of the image, even if at times it can still be considered *primary*). Possible classification scores are *correct primary* (P) in green, *correct secondary* (S), *close primary* (CP), *close secondary* (CS), and *incorrect* (I) in red. Invalid words or combinations, as well as non-nouns, are considered to be *incorrect*.
 
+**World-H examples:**  
 ![Example predictions on World-H](images/example_predictions_world.png)
 
+**Wiki-H examples:**  
 ![Example predictions on Wiki-H](images/example_predictions_wiki.png)
 
 ## Citation
