@@ -4,6 +4,7 @@
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-1)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-1?p=unconstrained-open-vocabulary-image)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-3)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-3?p=unconstrained-open-vocabulary-image)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-2)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-2?p=unconstrained-open-vocabulary-image)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/image-classification-on-imagenet)](https://paperswithcode.com/sota/image-classification-on-imagenet?p=unconstrained-open-vocabulary-image)
 
 **Main Author:** Philipp Allgeuer
 
