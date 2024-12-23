@@ -23,7 +23,7 @@ pip install open_clip_torch==2.23 git+https://github.com/openai/CLIP.git
 pip check
 
 # Loging to weights and biases with api key.
-wandb login 6a656aae688674e7e3e14d8562d04794c393d00f
+wandb login 
 
 
 # Check if everything is ok
