@@ -12,6 +12,8 @@ Code release corresponding to the [WACV 2025 paper](https://www.arxiv.org/abs/24
 
 Philipp Allgeuer, Kyra Ahrens, and Stefan Wermter: *Unconstrained Open Vocabulary Image Classification: Zero-Shot Transfer from Text to Image via CLIP Inversion*
 
+**Video:** [WACV 2025 presentation](https://youtu.be/vyR2QHUH9NY) (also as `mp4` in `doc` folder, along with paper PDF and poster PDF)
+
 ## Overview
 
 **TL;DR:** Given an image and nothing else (i.e. no prompts or candidate labels), NOVIC can generate an accurate textual fine-grained classification label in *real-time*, with coverage of the vast majority of the English language.
