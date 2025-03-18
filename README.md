@@ -58,20 +58,28 @@ cd "$NOVIC"
 
 ### Environment
 
-Create a conda environment `novic` for the project (install [Miniconda](https://docs.anaconda.com/miniconda/install/) if you don't have either Miniconda or Anaconda yet):
+Create a conda environment `novic` for the project (install [Miniconda](https://docs.anaconda.com/miniconda/install/) if you don't have either Miniconda or Anaconda yet, and we heavily recommend enabling the [libmamba solver](https://www.anaconda.com/blog/a-faster-conda-for-a-growing-community)):
 ```bash
 NENV=novic
-conda create -n "$NENV" python=3.10
+conda create -y -n "$NENV" python=3.10
 conda activate "$NENV"
-conda install -c pytorch -c nvidia pytorch=2.1.2 torchvision pytorch-cuda=11.8 cuda-version=11.8 'libtiff<4.5' 'numpy<2'
-conda install -c conda-forge datasets filelock 'huggingface_hub<1' packaging pyyaml regex requests safetensors tqdm certifi openssl ca-certificates
-conda install -c conda-forge transformers==4.38.2  # <-- Other versions most likely work (explicit version avoids conda dependency mismanagement wrt optimum, but takes a LONG time anyway)
-conda install -c conda-forge optimum==1.17.1  # <-- Other versions most likely work (explicit version avoids conda dependency mismanagement wrt transformers, but takes a LONG time anyway)
-conda install -c conda-forge hydra-core accelerate ftfy timm sentencepiece wandb unidecode tabulate
+conda list | grep -q '^libgcc-ng ' && conda update -y -c conda-forge libgcc-ng
+conda list | grep -q '^libstdcxx-ng ' && conda update -y -c conda-forge libstdcxx-ng
+conda install -y -c pytorch -c nvidia pytorch=2.1.2 torchvision pytorch-cuda=11.8 cuda-version=11.8 'libtiff<4.5' 'numpy<2'
+conda install -y -c conda-forge datasets filelock 'huggingface_hub<1' packaging pyyaml regex requests safetensors tqdm certifi openssl ca-certificates
+conda install -y -c conda-forge 'hydra-core>1' omegaconf
+conda install -y -c conda-forge transformers==4.38.2  # <-- Other versions most likely work (if not using libmamba, explicit version avoids conda dependency mismanagement wrt optimum, but takes a LONG time anyway)
+conda install -y -c conda-forge optimum==1.17.1  # <-- Other versions most likely work (if not using libmamba, explicit version avoids conda dependency mismanagement wrt transformers, but takes a LONG time anyway)
+conda install -y -c conda-forge accelerate ftfy timm sentencepiece unidecode tabulate
+pip check  # <-- Verify that there was no dependency mismanagement by conda during the install process
+pip list --outdated  # <-- Verify that there was no dependency mismanagement by conda during the install process that can unfortunately sometimes lead to severely old package versions being chosen for no real reason (conda update those if applicable)
+pip install wandb  # <-- Pip install so that can be updated more cleanly in future
 pip install openai opencv-python
 pip install open_clip_torch==2.23 git+https://github.com/openai/CLIP.git
 pip check
 ```
+If you're having trouble with `conda` failing or doing unexpected things (unfortunately that happens as packages and solvers continue to be updated), try enabling (or disabling) the [libmamba solver](https://www.anaconda.com/blog/a-faster-conda-for-a-growing-community), or try outright installing everything with `pip` after the line above that installs PyTorch (pip is usually very stable, so that should always work).
+
 Set up Weights and Biases (an account is needed if you wish to use the Wandb integration, otherwise just always use `wandb=False` on the `./train.py` command line):
 ```bash
 conda activate "$NENV"
