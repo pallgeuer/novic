@@ -328,6 +328,30 @@ Below are some example predictions from the [WACV 2025 paper](https://www.arxiv.
 **Wiki-H examples:**  
 ![Example predictions on Wiki-H](images/example_predictions_wiki.png)
 
+## Anomaly Recognition
+
+In this section we provide the commands specific to using NOVIC for an anomaly recognition scenario. This involves customizing the object noun dictionary, retraining NOVIC with the customized dataset, and then embedding it into a pipeline where:
+1) Anomaly detection is performed to identify regions of the image that are unexpected,
+2) Bounding box RoIs are established based on the anomalous regions,
+3) NOVIC is used to classify the anomalous regions.
+
+To customize the object nouns for a particular scenario:
+
+- Create a Python environment (requires Python 3.12+ whereas NOVIC nominally uses Python 3.10) for using `gpt_batch_api` to customize the object nouns:
+  ```bash
+  conda create -n novic_gba python=3.12
+  conda activate novic_gba
+  pip install 'gpt_batch_api>=1.0.1'
+  ```
+
+- Run a script to customize the object nouns, e.g.:
+  ```bash
+  conda activate novic_gba
+  export OPENAI_API_KEY=sk-...  # <-- Set the OpenAI API key
+  export WANDB_API_KEY=...      # <-- Set the wandb API key (a project called gpt_batch_api is created/used and can be used to monitor runs in real-time)
+  python -m gpt_batch_api.wandb_configure_view --dst_entity ENTITY  # <-- [Substitute correct ENTITY! / Only need to execute this once ever per project!] Then go to https://wandb.ai/ENTITY/gpt_batch_api and select the saved view called 'GPT Batch API', and then click 'Copy to my workspace'
+  ```
+
 ## Citation
 
 If you use this project in your research, please cite this GitHub repository as well as the WACV 2025 paper:
