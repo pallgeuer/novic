@@ -341,6 +341,7 @@ To customize the object nouns for a particular scenario:
   ```bash
   conda create -n novic_gba python=3.12
   conda activate novic_gba
+  conda install unidecode
   pip install 'gpt_batch_api>=1.0.1'
   ```
 
