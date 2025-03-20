@@ -350,6 +350,7 @@ To customize the object nouns for a particular scenario:
   conda activate novic_gba
   export OPENAI_API_KEY=sk-...  # <-- Set the OpenAI API key
   export WANDB_API_KEY=...      # <-- Set the wandb API key (a project called gpt_batch_api is created/used and can be used to monitor runs in real-time)
+  ./custom_object_nouns.py --scenario airbus --description "A camera is used to capture images all over an aircraft manufacturing facility, including inside and outside the planes being built, and in all working areas."
   python -m gpt_batch_api.wandb_configure_view --dst_entity ENTITY  # <-- [Substitute correct ENTITY! / Only need to execute this once ever per project!] Then go to https://wandb.ai/ENTITY/gpt_batch_api and select the saved view called 'GPT Batch API', and then click 'Copy to my workspace'
   ```
 
