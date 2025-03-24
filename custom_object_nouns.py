@@ -21,9 +21,10 @@ from gpt_batch_api import task_manager, gpt_requester, utils as gba_utils
 class ObjectNounInfo(pydantic.BaseModel):
 	model_config = pydantic.ConfigDict(strict=True)
 	object_noun: str = pydantic.Field(title='Object noun', description="The object noun in question, written exactly as given by the user.")
-	formatted_noun: str = pydantic.Field(title='Formatted noun', description="The object noun in question, dictionary formatted with MINIMUM possible changes (no substantive changes) to have correct spacing (e.g. for compound nouns), correct punctuation (e.g. hyphenation, apostrophe, other), and correct dictionary capitalization (i.e. in case of proper nouns, otherwise lowercase).")
-	dictionary_gloss: str = pydantic.Field(title='Dictionary gloss', description="A dictionary gloss for the object noun (covering its meaning in terms of it being an object or physical entity that can potentially be seen in a camera image).")
-	is_valid_object_noun: bool = pydantic.Field(title='Is valid object noun', description="Whether the formatted object noun is valid, i.e. an object, thing, or physical entity that may occur in a camera image.")
+	formatted_noun: str = pydantic.Field(title='Formatted noun', description="How would you spell this object noun in a dictionary? (without significantly changing the word)")
+	dictionary_gloss: str = pydantic.Field(title='Dictionary gloss', description="A general dictionary gloss for the object noun.")
+	is_valid_object_noun_discussion: str = pydantic.Field(title='Is valid object noun (discussion)', description="Discuss in one sentence whether the formatted object noun is valid, i.e. an object, living thing, or otherwise physical entity.")
+	is_valid_object_noun: bool = pydantic.Field(title='Is valid object noun', description="Whether the formatted object noun is valid, i.e. an object, living thing, or otherwise physical entity.")
 	can_conceivably_occur_discussion: str = pydantic.Field(title='Can conceivably occur (discussion)', description="In the specific described scenario, discuss in two sentences how conceivable it is that an instance of the object noun in question could ever be seen in a captured camera image.")
 	can_conceivably_occur_rating: int = pydantic.Field(title='Can conceivably occur (rating 1-10)', description="In the specific described scenario, rate from 1 to 10 how conceivable it is that an instance of the object noun in question could ever be seen in a captured camera image.")
 	will_likely_occur_discussion: str = pydantic.Field(title='Will likely occur (discussion)', description="In the specific described scenario, discuss in two sentences how likely and regular it is in practice that an instance of the object noun in question will at some point be seen in a captured camera image.")
@@ -55,21 +56,23 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 
 	def __init__(self, cfg: gba_utils.Config):
 		super().__init__(
-			task_dir=cfg.working_dir,
-			name_prefix=f'object_nouns_{cfg.scenario_safe}',
+			task_dir=cfg.task_dir,
+			name_prefix=cfg.task_prefix,
 			output_factory=ObjectNounsFile.output_factory(),
 			init_meta=dict(
 				model=gba_utils.resolve(cfg.model, default='gpt-4o-mini-2024-07-18'),
-				max_completion_tokens=gba_utils.resolve(cfg.max_completion_tokens, default=2048),  # TODO: UPDATE
-				completion_ratio=gba_utils.resolve(cfg.completion_ratio, default=0.35),  # TODO: UPDATE
+				max_completion_tokens=gba_utils.resolve(cfg.max_completion_tokens, default=512),
+				completion_ratio=gba_utils.resolve(cfg.completion_ratio, default=0.44),
 				temperature=gba_utils.resolve(cfg.temperature, default=0.8),
 				top_p=gba_utils.resolve(cfg.top_p, default=0.8),
-				opinions=gba_utils.resolve(cfg.opinions, 3),
+				opinions=gba_utils.resolve(cfg.opinions, default=3),
+				scenario_description=cfg.description,
 			),
 			**gba_utils.get_init_kwargs(cls=task_manager.TaskManager, cfg=cfg),
 			**gba_utils.get_init_kwargs(cls=gpt_requester.GPTRequester, cfg=cfg, endpoint='/v1/chat/completions', assumed_completion_ratio=None)
 		)
-		self.cfg = cfg
+		self.input_nouns = cfg.input_nouns
+		self.input_ft = cfg.input_ft
 
 	def on_task_enter(self):
 		self.GR.set_assumed_completion_ratio(self.T.meta['completion_ratio'])
@@ -93,7 +96,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 
 	def generate_requests(self) -> bool:
 
-		input_nouns_path = os.path.abspath(self.cfg.input_nouns)
+		input_nouns_path = os.path.abspath(self.input_nouns)
 		with open(input_nouns_path, 'r') as file:
 			object_noun_entries = json.load(file)
 
@@ -109,37 +112,37 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			if pretty_noun_canon != target_noun:
 				raise ValueError(f"Canonical form of the pretty noun is not equal to the target noun: {pretty_noun} ~ {pretty_noun_canon} != {target_noun}")
 
-			if sum(entry['singulars_freq']) + sum(entry['plurals_freq']) <= self.cfg.input_ft:
+			if sum(entry['singulars_freq']) + sum(entry['plurals_freq']) <= self.input_ft:
 				continue
 
-			num_required = self.cfg.opinions - self.T.committed_samples.get(target_noun, 0)
+			num_required = self.T.meta['opinions'] - self.T.committed_samples.get(target_noun, 0)
 			if num_required > 0:
-				request = gpt_requester.GPTRequest(
-					payload=dict(
-						model=self.T.meta['model'],
-						max_completion_tokens=self.T.meta['max_completion_tokens'],
-						temperature=self.T.meta['temperature'],
-						top_p=self.T.meta['top_p'],
-						messages=[
-							dict(role='system', content=(
-								"Given an English object noun by the user, it is your sole and only task to provide information about that object noun, in a structured JSON format that follows a predefined schema. "
-								"'Object nouns' are simple or compound English nouns that correspond to an object, thing, or physical entity that may occur in a camera image. "
-								"The information you provide about each object noun will be used to compile a scenario-specific dictionary of nouns that includes metadata like how conceivable or likely such an object would be to occur in the specific stated scenario. "
-								"The exact scenario to consider for all information you provide about the object nouns is described below. "
-								"You must consider for this scenario what kinds of objects could conceivably be seen in the captured camera images, as well as how likely and regularly they are expected to be seen in practice.\n\n"
-								f"SCENARIO: {self.cfg.description}"
-							)),
-							dict(role='user', content=f"OBJECT NOUN:\n{pretty_noun}"),
-						],
-						response_format=ObjectNounInfo,
-					),
-					meta=dict(
-						entry=entry,
-					),
+				payload = dict(
+					model=self.T.meta['model'],
+					max_completion_tokens=self.T.meta['max_completion_tokens'],
+					temperature=self.T.meta['temperature'],
+					top_p=self.T.meta['top_p'],
+					messages=[
+						dict(role='system', content=(
+							"Given an English object noun by the user, it is your sole and only task to provide information about that object noun, in a structured JSON format that follows a predefined schema. "
+							"'Object nouns' are simple or compound English nouns that correspond to an object, living thing, or physical entity that can potentially occur in an arbitrary camera image. "
+							"The information you provide about each object noun will be used to compile a scenario-specific dictionary of nouns that includes metadata like how conceivable or likely such an object would be to occur in the specific stated scenario. "
+							"The exact scenario to consider for all information you provide about the object nouns is described below. "
+							"You must consider for this scenario what kinds of objects could conceivably be seen in the captured camera images, as well as how likely and regularly they are expected to be seen in practice.\n\n"
+							f"SCENARIO: {self.T.meta['scenario_description']}"
+						)),
+						dict(role='user', content=f"OBJECT NOUN:\n{pretty_noun}"),
+					],
+					response_format=ObjectNounInfo,
 				)
+				if payload['model'].startswith('o'):
+					del payload['temperature']
+					del payload['top_p']
+					payload['reasoning_effort'] = 'medium'
+				request = gpt_requester.GPTRequest(payload=payload, meta=dict(entry=entry))
 				self.GR.add_requests(request for _ in range(num_required))
 
-			if self.GR.PQ.pool_len >= 6000 and self.commit_requests():
+			if self.GR.PQ.pool_len >= 12000 and self.commit_requests():
 				return False
 
 		return True
@@ -222,7 +225,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			err_bad_rating.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further bad ratings (total {num_total} occurrences)")
 			err_misc_failed.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further requests that got no error yet FAILED (total {num_total} occurrences)")
 
-			return bool(succeeded_samples) or bool(failed_samples)
+		return bool(succeeded_samples) or bool(failed_samples)
 
 #
 # Miscellaneous
@@ -251,7 +254,8 @@ def main():
 	parser.add_argument('--input_nouns', type=str, metavar='PATH', help="Input object nouns JSON file (default: 'data/object_nouns.json' relative to this script)")
 	parser.add_argument('--input_ft', type=int, default=0, metavar='FT', help="Frequency threshold (integer) non-strictly below which to ignore input nouns (default: %(default)s)")
 	parser.add_argument('--output_nouns', type=str, metavar='PATH', help="Output object nouns JSON file (default: 'data/object_nouns_{scenario}.json' relative to this script)")
-	parser.add_argument('--working_dir', type=str, metavar='PATH', help="GPT Batch API task directory (default: {output_nouns dir}/gba_tasks)")
+	parser.add_argument('--task_dir', type=str, metavar='PATH', help="GPT Batch API task directory (default: {output_nouns dir}/gba_tasks)")
+	parser.add_argument('--task_prefix', type=str, metavar='PREFIX', help="Name prefix to use for task-related files (default is constructed based on scenario)")
 
 	parser_meta = parser.add_argument_group(title='Task metadata')
 	parser_meta.add_argument('--model', type=str, help="LLM model to use")
@@ -270,25 +274,30 @@ def main():
 		raise ValueError("Please provide a valid scenario")
 	if not cfg.description:
 		raise ValueError("Please provide a valid description")
+
 	cfg.scenario_safe = cfg.scenario.replace('/', '_')
+	if cfg.task_prefix is None:
+		cfg.task_prefix = f'object_nouns_{cfg.scenario_safe}'
 
 	script_dir = os.path.dirname(os.path.abspath(__file__))
 	if cfg.input_nouns is None:
 		cfg.input_nouns = os.path.join(script_dir, 'data', 'object_nouns.json')
 	if cfg.output_nouns is None:
 		cfg.output_nouns = os.path.join(script_dir, 'data', f'object_nouns_{cfg.scenario_safe}.json')
-	if cfg.working_dir is None:
-		cfg.working_dir = os.path.join(os.path.dirname(cfg.output_nouns), 'gba_tasks')
+	if cfg.task_dir is None:
+		cfg.task_dir = os.path.join(os.path.dirname(cfg.output_nouns), 'gba_tasks')
 	if cfg.wandb is None:
 		cfg.wandb = not cfg.dryrun
 
 	log.info(f"Scenario: {cfg.scenario}")
 	log.info(f"Scenario description:\n{cfg.description}")
 	log.info(f"Input nouns (FT{cfg.input_ft}): {cfg.input_nouns}")
-	log.info(f"Task working directory: {cfg.working_dir}")
-	log.info(f"Output nouns will be: {cfg.output_nouns}")
+	log.info(f"Task working directory: {cfg.task_dir}")
+	log.info(f"Task prefix: {cfg.task_prefix}")
+	log.info(f"Output nouns file will be: {cfg.output_nouns}")
 
 	with gpt_requester.GPTRequester.wandb_init(config=cfg):
+		log.info('\u2550' * 120)
 		task = CustomizeObjectNounsTask(cfg=cfg)
 		if task.run():
 			generate_output_nouns(cfg=cfg)
