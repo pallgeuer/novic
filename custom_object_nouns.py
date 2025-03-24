@@ -5,10 +5,12 @@ import os
 import re
 import json
 import argparse
+import operator
 import functools
 import unidecode
+import collections
 import dataclasses
-from typing import Optional
+from typing import Optional, Any
 import pydantic
 import openai.types.chat as openai_chat
 from gpt_batch_api import task_manager, gpt_requester, utils as gba_utils
@@ -33,15 +35,14 @@ class ObjectNounInfo(pydantic.BaseModel):
 # Object noun data class (task output entry)
 @dataclasses.dataclass
 class ObjectNounData:
-	target_noun: str
-	pretty_noun: str
+	entry: dict[str, Any]
 	opinion_num: int
 	target_noun_opinion: str
 	pretty_noun_opinion: str
 	opinion: ObjectNounInfo
 
 # Object nouns file class (task output file)
-class ObjectNounsFile(task_manager.DataclassListOutputFile):
+class ObjectNounsFile(task_manager.DataclassListOutputFile[ObjectNounData]):
 	Dataclass = ObjectNounData
 
 # Customize object nouns task class (task manager)
@@ -53,8 +54,10 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 	#  - failed_samples:    dict[str, int] => Maps a sample key to the number of times it has failed
 	#  - succeeded_samples: dict[str, int] => Maps a sample key to the number of times it has succeeded
 	# Task output: Single JSONL file of JSON-serialized ObjectNounData dataclass instances
+	output: ObjectNounsFile
 
 	def __init__(self, cfg: gba_utils.Config):
+
 		super().__init__(
 			task_dir=cfg.task_dir,
 			name_prefix=cfg.task_prefix,
@@ -71,8 +74,10 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			**gba_utils.get_init_kwargs(cls=task_manager.TaskManager, cfg=cfg),
 			**gba_utils.get_init_kwargs(cls=gpt_requester.GPTRequester, cfg=cfg, endpoint='/v1/chat/completions', assumed_completion_ratio=None)
 		)
+
 		self.input_nouns = cfg.input_nouns
 		self.input_ft = cfg.input_ft
+		self.output_nouns = cfg.output_nouns
 
 	def on_task_enter(self):
 		self.GR.set_assumed_completion_ratio(self.T.meta['completion_ratio'])
@@ -203,8 +208,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 					num_succeeded += 1
 					self.T.succeeded_samples[sample_key] = num_succeeded
 					self.D.entries.append(ObjectNounData(
-						target_noun=target_noun,
-						pretty_noun=pretty_noun,
+						entry=entry,
 						opinion_num=num_succeeded,
 						target_noun_opinion=get_canon(noun=object_noun_info.formatted_noun, sanitize=True),
 						pretty_noun_opinion=object_noun_info.formatted_noun,
@@ -226,6 +230,52 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			err_misc_failed.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further requests that got no error yet FAILED (total {num_total} occurrences)")
 
 		return bool(succeeded_samples) or bool(failed_samples)
+
+	def postprocess_output_data(self):
+
+		opinions: dict[str, dict[int, ObjectNounData]] = {}
+		for item in self.output.entries():
+			target_noun = item.entry['target_noun']
+			if (opinion_map := opinions.get(target_noun, None)) is None:
+				opinions[target_noun] = opinion_map = {}
+			if item.opinion_num in opinion_map:
+				log.warning(f"Overwriting existing opinion {item.opinion_num} for target noun: {target_noun}")
+			opinion_map[item.opinion_num] = item
+
+		entries = []
+		for target_noun, opinion_map in opinions.items():
+
+			assert opinion_map
+			if sorted(opinion_map.keys()) != list(range(1, len(opinion_map) + 1)):
+				log.warning(f"Missing opinion(s) for target noun: {target_noun} => Have opinion numbers {sorted(opinion_map.keys())}")
+			elif len(opinion_map) < self.T.meta['opinions']:
+				log.warning(f"Too few ({len(opinion_map)} < {self.T.meta['opinions']}) opinions for target noun: {target_noun}")
+
+			opinion_list = list(opinion_map.values())
+			entry = opinion_list[-1].entry
+			if any(item.entry != entry for item in opinion_list):
+				log.warning(f"There are inconsistent original entries for target noun: {target_noun}")
+			entry = entry.copy()
+
+			if pretty_counter := collections.Counter(opinion.pretty_noun_opinion for opinion in opinion_list if opinion.target_noun_opinion == target_noun):
+				entry['pretty_noun'], _ = pretty_counter.most_common(n=1)[0]
+
+			conceivable = sum(opinion.opinion.can_conceivably_occur_rating for opinion in opinion_list) / len(opinion_list)
+			likely = sum(opinion.opinion.will_likely_occur_rating for opinion in opinion_list) / len(opinion_list)
+			opinion_freq = (2 * likely + conceivable) / 3
+			opinion_freq = 0.4 * opinion_freq * opinion_freq  # Map a 1-10 rating to a total noun frequency
+			former_freq = sum(entry['singulars_freq']) + sum(entry['plurals_freq'])
+			if former_freq > 0:
+				freq_scale = opinion_freq / former_freq
+				entry['singulars_freq'] = [max(round(count * freq_scale), 1) for count in entry['singulars_freq']]
+				entry['plurals_freq'] = [max(round(count * freq_scale), 1) for count in entry['plurals_freq']]
+
+			entries.append(entry)
+
+		entries.sort(key=operator.itemgetter('target_noun'))
+		with open(self.output_nouns, 'w') as file:
+			json.dump(entries, file, ensure_ascii=False, indent=2, sort_keys=False)
+		log.info(f"Wrote output object noun JSON file: {self.output_nouns}")
 
 #
 # Miscellaneous
@@ -298,13 +348,7 @@ def main():
 
 	with gpt_requester.GPTRequester.wandb_init(config=cfg):
 		log.info('\u2550' * 120)
-		task = CustomizeObjectNounsTask(cfg=cfg)
-		if task.run():
-			generate_output_nouns(cfg=cfg)
-
-# Generate the output nouns file based on the task output
-def generate_output_nouns(cfg: gba_utils.Config):
-	pass  # TODO: cfg.output_nouns / If task TOTALLY completes then output_nouns JSON is generated based on task output JSONL (open it in read-only mode using output file class)
+		CustomizeObjectNounsTask(cfg=cfg).run()
 
 # Run main function
 if __name__ == "__main__":
