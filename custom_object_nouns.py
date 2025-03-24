@@ -54,6 +54,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 	#  - failed_samples:    dict[str, int] => Maps a sample key to the number of times it has failed
 	#  - succeeded_samples: dict[str, int] => Maps a sample key to the number of times it has succeeded
 	# Task output: Single JSONL file of JSON-serialized ObjectNounData dataclass instances
+
 	output: ObjectNounsFile
 
 	def __init__(self, cfg: gba_utils.Config):
