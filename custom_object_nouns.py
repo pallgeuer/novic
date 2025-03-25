@@ -77,6 +77,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			**gba_utils.get_init_kwargs(cls=gpt_requester.GPTRequester, cfg=cfg, endpoint='/v1/chat/completions', assumed_completion_ratio=None)
 		)
 
+		self.force_pretty = cfg.force_pretty
 		self.input_nouns = cfg.input_nouns
 		self.input_ft = cfg.input_ft
 		self.output_nouns = cfg.output_nouns
@@ -125,7 +126,10 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 
 			num_required = self.T.meta['opinions'] - self.T.committed_samples.get(target_noun, 0)
 			if num_required > 0:
-				object_noun = max((singular for singular in itertools.chain((pretty_noun,), entry['singulars']) if get_canon(noun=singular, sanitize=False) == target_noun), key=lambda s: (sum(not (c.isascii() and (c.isalnum() or c == ' ')) for c in s), sum(c.isupper() for c in s)))
+				if self.force_pretty:
+					object_noun = pretty_noun
+				else:
+					object_noun = max((singular for singular in itertools.chain((pretty_noun,), entry['singulars']) if get_canon(noun=singular, sanitize=False) == target_noun), key=lambda s: (sum(not (c.isascii() and (c.isalnum() or c == ' ')) for c in s), sum(c.isupper() for c in s)))
 				payload = dict(
 					model=self.T.meta['model'],
 					max_completion_tokens=self.T.meta['max_completion_tokens'],
@@ -308,6 +312,7 @@ def main():
 	parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help="Show this help message and exit")
 	parser.add_argument('--scenario', type=str, required=True, metavar='NAME', help="Scenario name to customize the object nouns for")
 	parser.add_argument('--description', type=str, required=True, metavar='DESC', help="Scenario description")
+	parser.add_argument('--force_pretty', action='store_true', help="Force use of pretty noun for request generation (instead of automatically choosing one of the singulars)")
 	parser.add_argument('--input_nouns', type=str, metavar='PATH', help="Input object nouns JSON file (default: 'data/object_nouns.json' relative to this script)")
 	parser.add_argument('--input_ft', type=int, default=0, metavar='FT', help="Frequency threshold (integer) non-strictly below which to ignore input nouns (default: %(default)s)")
 	parser.add_argument('--output_nouns', type=str, metavar='PATH', help="Output object nouns JSON file (default: 'data/object_nouns_{scenario}.json' relative to this script)")
