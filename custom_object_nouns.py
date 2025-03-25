@@ -236,9 +236,9 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 					failed_samples[sample_key] = self.T.failed_samples.get(sample_key, None)
 				self.T.failed_samples[sample_key] = num_failed + 1
 
-			err_noun_mismatch.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further noun mismatches (total {num_total} occurrences)")
-			err_bad_rating.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further bad ratings (total {num_total} occurrences)")
-			err_misc_failed.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further requests that got no error yet FAILED (total {num_total} occurrences)")
+		err_noun_mismatch.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further noun mismatches (total {num_total} occurrences)")
+		err_bad_rating.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further bad ratings (total {num_total} occurrences)")
+		err_misc_failed.finalize(msg_fn=lambda num_omitted, num_total: f"Encountered {num_omitted} further requests that got no error yet FAILED (total {num_total} occurrences)")
 
 		return bool(succeeded_samples) or bool(failed_samples)
 
