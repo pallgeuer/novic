@@ -7,6 +7,7 @@ import json
 import argparse
 import operator
 import functools
+import itertools
 import unidecode
 import collections
 import dataclasses
@@ -25,11 +26,11 @@ class ObjectNounInfo(pydantic.BaseModel):
 	object_noun: str = pydantic.Field(title='Object noun', description="The object noun in question, written exactly as given by the user.")
 	formatted_noun: str = pydantic.Field(title='Formatted noun', description="How would you spell this object noun in a dictionary? (without significantly changing the word)")
 	dictionary_gloss: str = pydantic.Field(title='Dictionary gloss', description="A general dictionary gloss for the object noun.")
-	is_valid_object_noun_discussion: str = pydantic.Field(title='Is valid object noun (discussion)', description="Discuss in one sentence whether the formatted object noun is valid, i.e. an object, living thing, or otherwise physical entity.")
+	is_valid_object_noun_discussion: str = pydantic.Field(title='Is valid object noun (discussion)', description="Discuss in two sentences whether the formatted object noun is valid, i.e. an object, living thing, or otherwise physical entity.")
 	is_valid_object_noun: bool = pydantic.Field(title='Is valid object noun', description="Whether the formatted object noun is valid, i.e. an object, living thing, or otherwise physical entity.")
-	can_conceivably_occur_discussion: str = pydantic.Field(title='Can conceivably occur (discussion)', description="In the specific described scenario, discuss in two sentences how conceivable it is that an instance of the object noun in question could ever be seen in a captured camera image.")
+	can_conceivably_occur_discussion: str = pydantic.Field(title='Can conceivably occur (discussion)', description="In the specific described scenario, discuss in three sentences how conceivable it is that an instance of the object noun in question could ever be seen in a captured camera image.")
 	can_conceivably_occur_rating: int = pydantic.Field(title='Can conceivably occur (rating 1-10)', description="In the specific described scenario, rate from 1 to 10 how conceivable it is that an instance of the object noun in question could ever be seen in a captured camera image.")
-	will_likely_occur_discussion: str = pydantic.Field(title='Will likely occur (discussion)', description="In the specific described scenario, discuss in two sentences how likely and regular it is in practice that an instance of the object noun in question will at some point be seen in a captured camera image.")
+	will_likely_occur_discussion: str = pydantic.Field(title='Will likely occur (discussion)', description="In the specific described scenario, discuss in three sentences how likely and regular it is in practice that an instance of the object noun in question will at some point be seen in a captured camera image.")
 	will_likely_occur_rating: int = pydantic.Field(title='Will likely occur (rating 1-10)', description="In the specific described scenario, rate from 1 to 10 how likely and regular it is in practice that an instance of the object noun in question will at some point be seen in a captured camera image.")
 
 # Object noun data class (task output entry)
@@ -65,8 +66,8 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			output_factory=ObjectNounsFile.output_factory(),
 			init_meta=dict(
 				model=gba_utils.resolve(cfg.model, default='gpt-4o-mini-2024-07-18'),
-				max_completion_tokens=gba_utils.resolve(cfg.max_completion_tokens, default=512),
-				completion_ratio=gba_utils.resolve(cfg.completion_ratio, default=0.44),
+				max_completion_tokens=gba_utils.resolve(cfg.max_completion_tokens, default=600),
+				completion_ratio=gba_utils.resolve(cfg.completion_ratio, default=0.48),
 				temperature=gba_utils.resolve(cfg.temperature, default=0.8),
 				top_p=gba_utils.resolve(cfg.top_p, default=0.8),
 				opinions=gba_utils.resolve(cfg.opinions, default=3),
@@ -79,6 +80,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 		self.input_nouns = cfg.input_nouns
 		self.input_ft = cfg.input_ft
 		self.output_nouns = cfg.output_nouns
+		self.output_freq_scale = cfg.output_freq_scale
 
 	def on_task_enter(self):
 		self.GR.set_assumed_completion_ratio(self.T.meta['completion_ratio'])
@@ -123,6 +125,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 
 			num_required = self.T.meta['opinions'] - self.T.committed_samples.get(target_noun, 0)
 			if num_required > 0:
+				object_noun = max((singular for singular in itertools.chain((pretty_noun,), entry['singulars']) if get_canon(noun=singular, sanitize=False) == target_noun), key=lambda s: (sum(not (c.isascii() and (c.isalnum() or c == ' ')) for c in s), sum(c.isupper() for c in s)))
 				payload = dict(
 					model=self.T.meta['model'],
 					max_completion_tokens=self.T.meta['max_completion_tokens'],
@@ -137,7 +140,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 							"You must consider for this scenario what kinds of objects could conceivably be seen in the captured camera images, as well as how likely and regularly they are expected to be seen in practice.\n\n"
 							f"SCENARIO: {self.T.meta['scenario_description']}"
 						)),
-						dict(role='user', content=f"OBJECT NOUN:\n{pretty_noun}"),
+						dict(role='user', content=f"OBJECT NOUN:\n{object_noun}"),
 					],
 					response_format=ObjectNounInfo,
 				)
@@ -145,7 +148,10 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 					del payload['temperature']
 					del payload['top_p']
 					payload['reasoning_effort'] = 'medium'
-				request = gpt_requester.GPTRequest(payload=payload, meta=dict(entry=entry))
+				request = gpt_requester.GPTRequest(payload=payload, meta=dict(
+					entry=entry,
+					object_noun=object_noun,
+				))
 				self.GR.add_requests(request for _ in range(num_required))
 
 			if self.GR.PQ.pool_len >= 12000 and self.commit_requests():
@@ -197,7 +203,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			if info.err_info is None and info.resp_info is not None and isinstance(info.resp_info.payload, openai_chat.ParsedChatCompletion) and info.resp_info.payload.choices and isinstance((object_noun_info := info.resp_info.payload.choices[0].message.parsed), ObjectNounInfo):  # noqa
 				assert not info.retry and info.retry_counts
 				object_noun_info: ObjectNounInfo
-				if object_noun_info.object_noun != pretty_noun:
+				if object_noun_info.object_noun != info.req_info.meta['object_noun']:
 					info.err_info = gpt_requester.ErrorInfo(fatal=False, type='TaskSpecific', subtype='ObjectNounMismatch', data=object_noun_info.object_noun, msg=f"Got object noun '{object_noun_info.object_noun}' instead of '{pretty_noun}'")
 					err_noun_mismatch.log(f"Batch {result.batch.id} request ID {info.req_id} retry {info.req_info.retry_num} had a noun mismatch: {info.err_info.msg}")
 				elif not (1 <= object_noun_info.can_conceivably_occur_rating <= 10 and 1 <= object_noun_info.will_likely_occur_rating <= 10):
@@ -264,7 +270,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 			conceivable = sum(opinion.opinion.can_conceivably_occur_rating for opinion in opinion_list) / len(opinion_list)
 			likely = sum(opinion.opinion.will_likely_occur_rating for opinion in opinion_list) / len(opinion_list)
 			opinion_freq = (2 * likely + conceivable) / 3
-			opinion_freq = 0.4 * opinion_freq * opinion_freq  # Map a 1-10 rating to a total noun frequency
+			opinion_freq = self.output_freq_scale * opinion_freq * opinion_freq  # Map a 1-10 rating to a total noun frequency
 			former_freq = sum(entry['singulars_freq']) + sum(entry['plurals_freq'])
 			if former_freq > 0:
 				freq_scale = opinion_freq / former_freq
@@ -305,6 +311,7 @@ def main():
 	parser.add_argument('--input_nouns', type=str, metavar='PATH', help="Input object nouns JSON file (default: 'data/object_nouns.json' relative to this script)")
 	parser.add_argument('--input_ft', type=int, default=0, metavar='FT', help="Frequency threshold (integer) non-strictly below which to ignore input nouns (default: %(default)s)")
 	parser.add_argument('--output_nouns', type=str, metavar='PATH', help="Output object nouns JSON file (default: 'data/object_nouns_{scenario}.json' relative to this script)")
+	parser.add_argument('--output_freq_scale', type=float, default=0.375, metavar='SCALE', help="Output object noun frequency scaler (default: %(default)s)")
 	parser.add_argument('--task_dir', type=str, metavar='PATH', help="GPT Batch API task directory (default: {output_nouns dir}/gba_tasks)")
 	parser.add_argument('--task_prefix', type=str, metavar='PREFIX', help="Name prefix to use for task-related files (default is constructed based on scenario)")
 
