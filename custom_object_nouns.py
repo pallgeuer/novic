@@ -204,7 +204,7 @@ class CustomizeObjectNounsTask(task_manager.TaskManager):
 				assert not info.retry and info.retry_counts
 				object_noun_info: ObjectNounInfo
 				if object_noun_info.object_noun != info.req_info.meta['object_noun']:
-					info.err_info = gpt_requester.ErrorInfo(fatal=False, type='TaskSpecific', subtype='ObjectNounMismatch', data=object_noun_info.object_noun, msg=f"Got object noun '{object_noun_info.object_noun}' instead of '{pretty_noun}'")
+					info.err_info = gpt_requester.ErrorInfo(fatal=False, type='TaskSpecific', subtype='ObjectNounMismatch', data=object_noun_info.object_noun, msg=f"Got object noun '{object_noun_info.object_noun}' instead of '{info.req_info.meta['object_noun']}' where pretty noun is '{pretty_noun}'")
 					err_noun_mismatch.log(f"Batch {result.batch.id} request ID {info.req_id} retry {info.req_info.retry_num} had a noun mismatch: {info.err_info.msg}")
 				elif not (1 <= object_noun_info.can_conceivably_occur_rating <= 10 and 1 <= object_noun_info.will_likely_occur_rating <= 10):
 					info.err_info = gpt_requester.ErrorInfo(fatal=False, type='TaskSpecific', subtype='BadRating', data=(object_noun_info.can_conceivably_occur_rating, object_noun_info.will_likely_occur_rating), msg=f"Got rating(s) out of 1-10 range: {object_noun_info.can_conceivably_occur_rating}, {object_noun_info.will_likely_occur_rating}")
