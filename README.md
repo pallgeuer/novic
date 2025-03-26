@@ -348,6 +348,7 @@ To customize the object nouns for a particular scenario:
 - Run a script to customize the object nouns:
   - Setup:
     ```bash
+    cd /PATH/TO/novic
     conda activate novic_gba
     export OPENAI_API_KEY=sk-...  # <-- Set the OpenAI API key
     export WANDB_API_KEY=...      # <-- Set the wandb API key (a project called gpt_batch_api is created/used and can be used to monitor runs in real-time)
@@ -376,6 +377,22 @@ To customize the object nouns for a particular scenario:
   - Verify the output files:
     - `data/object_nouns_airbus.json`
     - `data/object_nouns_nicol.json`
+
+- Train NOVIC on the newly customized object nouns:
+  - Setup:
+    ```bash
+    cd /PATH/TO/novic
+    conda activate novic
+    SCENARIO=airbus  # <-- Or for example: nicol
+    ```
+  - Scenario-specific dataset preparation:
+    ```bash
+    for FT in 6 4 2 0; do ./train.py action=cache_noun_multiset embedder_spec=openclip:apple/DFN5B-CLIP-ViT-H-14-378 vocab_path="\$SOURCE/data/object_nouns_${SCENARIO}.json" vocab_thres="${FT}" save_embedding_cache="${SCENARIO}_dfn5bl_multiset3_cache_ft${FT}.bin" multi_target_freq="[1, 1, 1]"; done
+    ```
+  - Train NOVIC models with various frequency thresholds:
+    ```bash
+    for FT in 6 4 2 0; do for i in {1..4}; do ./train.py action=train embedder_spec=openclip:apple/DFN5B-CLIP-ViT-H-14-378 embedding_dataset="${SCENARIO}_dfn5bl_multiset3_cache_ft${FT}.bin" multi_target=True use_weights=True noise_scheme=GaussElemUniformAngle noise_vec_norm=3.25 noise_angle_min=45 noise_angle_max=75 noise_mix_ratio=0.15 accum_factor=16; done; done
+    ```
 
 ## Citation
 
