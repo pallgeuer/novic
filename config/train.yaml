@@ -63,7 +63,7 @@ dry_run: False
 # Enable wandb logging
 wandb: True
 # Wandb project name
-wandb_project: ovod
+wandb_project: novic
 # Wandb entity
 wandb_entity: null
 # Wandb group
