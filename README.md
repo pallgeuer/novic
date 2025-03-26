@@ -342,7 +342,7 @@ To customize the object nouns for a particular scenario:
   conda create -n novic_gba python=3.12
   conda activate novic_gba
   conda install unidecode
-  pip install 'gpt_batch_api>=1.0.1'
+  pip install 'gpt_batch_api>=1.0.3'
   ```
 
 - Run a script to customize the object nouns, e.g.:
