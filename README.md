@@ -345,15 +345,37 @@ To customize the object nouns for a particular scenario:
   pip install 'gpt_batch_api>=1.0.3'
   ```
 
-- Run a script to customize the object nouns, e.g.:
-  ```bash
-  conda activate novic_gba
-  export OPENAI_API_KEY=sk-...  # <-- Set the OpenAI API key
-  export WANDB_API_KEY=...      # <-- Set the wandb API key (a project called gpt_batch_api is created/used and can be used to monitor runs in real-time)
-  ./custom_object_nouns.py --scenario airbus --description "A camera is used to capture images throughout all indoor areas of an aircraft manufacturing facility that is located in Germany." --model gpt-4o-mini-2024-07-18 --cost_input_direct_mtoken 0.150 --cost_input_cached_mtoken 0.075 --cost_input_batch_mtoken 0.075 --cost_output_direct_mtoken 0.600 --cost_output_batch_mtoken 0.300 --wandb_name object_nouns_airbus --max_remote_ktokens 100000
-  ./custom_object_nouns.py --scenario nicol --description "A camera located in the head of a humanoid robot is used to capture images of human-robot interaction scenarios. The robot is permanently located in the same indoor room in Germany without windows. The table in front of the robot is used as a workspace for the robot to interact with all kinds of common day-to-day objects, toys, tools, plastic food, and more. When rating the likelihood of seeing non-indoor things like a horse or airplane, rate how commonly toys of that particular object noun exist in Germany." --model gpt-4o-mini-2024-07-18 --cost_input_direct_mtoken 0.150 --cost_input_cached_mtoken 0.075 --cost_input_batch_mtoken 0.075 --cost_output_direct_mtoken 0.600 --cost_output_batch_mtoken 0.300 --wandb_name object_nouns_nicol --max_remote_ktokens 100000
-  python -m gpt_batch_api.wandb_configure_view --dst_entity ENTITY  # <-- [Substitute correct ENTITY! / Only need to execute this once ever per project!] Then go to https://wandb.ai/ENTITY/gpt_batch_api and select the saved view called 'GPT Batch API', and then click 'Copy to my workspace'
-  ```
+- Run a script to customize the object nouns:
+  - Setup:
+    ```bash
+    conda activate novic_gba
+    export OPENAI_API_KEY=sk-...  # <-- Set the OpenAI API key
+    export WANDB_API_KEY=...      # <-- Set the wandb API key (a project called gpt_batch_api is created/used and can be used to monitor runs in real-time)
+    ```
+  - Example scenario: Airbus facility
+    ```bash
+    SCENARIO=airbus
+    DESCRIPTION="A camera is used to capture images throughout all indoor areas of an aircraft manufacturing facility that is located in Germany."
+    ```
+  - Example scenario: NICOL robot
+    ```bash
+    SCENARIO=nicol
+    DESCRIPTION="A camera located in the head of a humanoid robot is used to capture images of human-robot interaction scenarios. The robot is permanently located in the same indoor room in Germany without windows. The table in front of the robot is used as a workspace for the robot to interact with all kinds of common day-to-day objects, toys, tools, plastic food, and more. When rating the likelihood of seeing non-indoor things like a horse or airplane, rate how commonly toys of that particular object noun exist in Germany."
+    ```
+  - Generate the custom object nouns dataset (in particular the frequencies) based on the chosen scenario:
+    ```bash
+    # <-- Ensure SCENARIO and DESCRIPTION are defined
+    SCENARIO_ARGS=(--scenario "$SCENARIO" --description "$DESCRIPTION" --model gpt-4o-mini-2024-07-18 --cost_input_direct_mtoken 0.150 --cost_input_cached_mtoken 0.075 --cost_input_batch_mtoken 0.075 --cost_output_direct_mtoken 0.600 --cost_output_batch_mtoken 0.300 --wandb_name "object_nouns_${SCENARIO}" --max_remote_ktokens 150000)
+    ./custom_object_nouns.py "${SCENARIO_ARGS[@]}"  # <-- Once only to create and run the task
+    ./custom_object_nouns.py "${SCENARIO_ARGS[@]}" --wandb_run_id XXXXXXXX  # <-- Continue an existing task (XXXXXXXX is the wandb run ID of the previous command, retrieved from the wandb web interface, normally a sequence of 8 alphanumeric characters)
+    ./custom_object_nouns.py "${SCENARIO_ARGS[@]}" --wandb_run_id XXXXXXXX --wipe_failed --force_pretty --max_retries 10  # <-- Retry failed samples of a FINISHED task (as before, XXXXXXXX is the wandb run ID of the first command)
+
+    # Configure the gpt_batch_api wandb project for best viewing of the GPT Batch API library logging
+    python -m gpt_batch_api.wandb_configure_view --dst_entity ENTITY  # <-- [Substitute correct ENTITY! / Only need to execute this once ever per project!] Then go to https://wandb.ai/ENTITY/gpt_batch_api and select the saved view called 'GPT Batch API', and then click 'Copy to my workspace'
+    ```
+  - Verify the output files:
+    - `data/object_nouns_airbus.json`
+    - `data/object_nouns_nicol.json`
 
 ## Citation
 
