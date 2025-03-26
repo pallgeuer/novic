@@ -169,4 +169,5 @@ cython_debug/
 /cache
 /extras
 /wandb
+/commands_private.txt
 !.gitkeep
