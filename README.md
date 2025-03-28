@@ -393,6 +393,21 @@ To customize the object nouns for a particular scenario:
     ```bash
     for FT in 6 4 2 0; do for i in {1..4}; do ./train.py action=train embedder_spec=openclip:apple/DFN5B-CLIP-ViT-H-14-378 embedding_dataset="${SCENARIO}_dfn5bl_multiset3_cache_ft${FT}.bin" multi_target=True use_weights=True noise_scheme=GaussElemUniformAngle noise_vec_norm=3.25 noise_angle_min=45 noise_angle_max=75 noise_mix_ratio=0.15 accum_factor=16; done; done
     ```
+  - Given a NOVIC model output directory `outputs/ovod_XXXXXXXX_XXXXXX`, evaluate it on Wiki-L:
+    ```bash
+    ./train.py action=infer wandb=False infer_log=True infer_pred_json=True load_models="['ovod_XXXXXXXX_XXXXXX']" embedder_spec=openclip:apple/DFN5B-CLIP-ViT-H-14-378 gencfgs="['beam_k10_vnone_gp_t1_a0']" batch_size_image=128 infer_all_images_dir='$SOURCE/extras/wiki'
+    # <-- Check the output logs to see which 'outputs/ovod_YYYYYYYY_YYYYYY' directory contains the predictions JSON on the Wiki dataset
+    ./gpt_annotation.py --action annotate_batch --state extras/wiki/_gpt_annotations.json --topk 3 --predictions outputs/ovod_YYYYYYYY_YYYYYY
+		./gpt_annotation.py --action save_classes --state extras/wiki/_gpt_annotations.json --classes extras/wiki/_class_annotations_gpt.json
+    ./train.py action=format_preds pfmt_type=model_topk_v1 pfmt_sort='model' pfmt_topk=3 pred_image_dir='$SOURCE/extras/wiki' pred_ann_json='$IMAGEDIR/_class_annotations_gpt.json' load_pred_jsons='$SOURCE/outputs/ovod_YYYYYYYY_YYYYYY'
+    ```
+  - Given a NOVIC model output directory `outputs/ovod_XXXXXXXX_XXXXXX`, evaluate it on World-H:
+    ```bash
+    ./train.py action=infer wandb=False infer_log=True infer_pred_json=True load_models="['ovod_XXXXXXXX_XXXXXX']" embedder_spec=openclip:apple/DFN5B-CLIP-ViT-H-14-378 gencfgs="['beam_k10_vnone_gp_t1_a0']" batch_size_image=128 infer_all_images_dir='$SOURCE/extras/world'
+    # <-- Check the output logs to see which 'outputs/ovod_ZZZZZZZZ_ZZZZZZ' directory contains the predictions JSON on the World dataset
+    ./dataset_annotation.py --k 1 --image_dir extras/world --annotations_file extras/world/_class_annotations.json --predictions_dirs outputs/ovod_ZZZZZZZZ_ZZZZZZ
+    ./train.py action=format_preds pfmt_type=model_topk_v1 pfmt_sort='model' pfmt_topk=1 pred_image_dir='$SOURCE/extras/world' pred_ann_json='$IMAGEDIR/_class_annotations.json' load_pred_jsons='$SOURCE/outputs/ovod_ZZZZZZZZ_ZZZZZZ'
+    ```
 
 ## Citation
 
