@@ -1,0 +1,52 @@
+# Stage 1: Build the required conda environment
+FROM continuumio/miniconda3:latest as condainstall
+
+ARG CUDAVER=118
+ARG PYTHON=3.10
+ARG PYTORCH=2.5.1
+ARG TRANSFORMERS=4.38.2
+ARG OPTIMUM=1.17.1
+ARG TIMM=0.3.2
+ARG OPENCLIP=2.23
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake git libcppunit-dev libeigen3-dev && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/opt/conda/pkgs \
+    conda create --copy -p /env -y python="$PYTHON" pybind11 && \
+    conda update -p /env -y -c conda-forge libgcc-ng libstdcxx-ng && \
+    conda install -p /env -y certifi && \
+    conda run -p /env python -m pip install --no-cache-dir torch=="$PYTORCH" torchvision 'numpy<2' --index-url https://download.pytorch.org/whl/cu"$CUDAVER" && \
+    conda run -p /env python -m pip install --no-cache-dir datasets filelock 'huggingface_hub<1' hydra-core packaging pyyaml regex requests safetensors tqdm transformers=="$TRANSFORMERS" optimum=="$OPTIMUM" accelerate ftfy timm=="$TIMM" sentencepiece unidecode tabulate scipy scikit-learn shapely catkin-pkg empy wandb openai opencv-python-headless open_clip_torch=="$OPENCLIP" git+https://github.com/openai/CLIP.git git+https://github.com/facebookresearch/sam2.git && \
+    conda run -p /env python -m pip check && sleep 5s
+
+ENV PATH="/env/bin:$PATH"
+
+RUN sed -i 's/^from torch\._six import container_abcs$/import collections.abc as container_abcs/' "/env/lib/python$PYTHON/site-packages/timm/models/layers/helpers.py"
+
+RUN cd /tmp && \
+    git clone --recursive https://github.com/orocos/orocos_kinematics_dynamics.git && \
+    cd orocos_kinematics_dynamics && \
+    git checkout 8dbdda7 && \
+    git checkout --recurse-submodules 8dbdda7 && \
+    git submodule sync && \
+    git submodule update --init --recursive && \
+    git submodule status && \
+    cd orocos_kdl && mkdir build && cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=/env .. && \
+    make -j8 && make install && \
+    cd /tmp/orocos_kinematics_dynamics/python_orocos_kdl && mkdir build && cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=/env -DROS_PYTHON_VERSION=3 .. && \
+    make -j8 && make install && \
+    ln -sv /env/lib/python"$PYTHON"/dist-packages/PyKDL.so /env/lib/python"$PYTHON"/lib-dynload/PyKDL.so && \
+    rm -rf /tmp/orocos_kinematics_dynamics
+
+# Stage 2: Repackage into a small Ubuntu image
+FROM ubuntu:24.04
+
+ENV CONDA_PREFIX="/env"
+ENV PATH="/env/bin:$PATH"
+
+RUN apt-get update && apt-get install -y --no-install-recommends g++ libcppunit-dev libeigen3-dev && rm -rf /var/lib/apt/lists/*
+
+COPY --from=condainstall /env /env
+# EOF
