@@ -49,4 +49,12 @@ ENV PATH="/env/bin:$PATH"
 RUN apt-get update && apt-get install -y --no-install-recommends g++ libcppunit-dev libeigen3-dev && rm -rf /var/lib/apt/lists/*
 
 COPY --from=condainstall /env /env
+
+RUN apt-get update && apt-get install -y --no-install-recommends iputils-ping rsync openssh-client git tree silversearcher-ag ncdu tmux htop vim colordiff curl net-tools && rm -rf /var/lib/apt/lists/*
+
+RUN echo "alias mirror='rsync -avzH --no-o --no-g --delete --delete-excluded --progress --stats --human-readable'" >> /root/.bashrc && \
+	echo "alias ls='ls --color=auto --group-directories-first'" >> /root/.bashrc && \
+	echo "alias grep='grep --color=auto'" >> /root/.bashrc && \
+	echo "alias lah='ls -lAh'" >> /root/.bashrc && \
+	echo "alias diff='colordiff -u'" >> /root/.bashrc
 # EOF
