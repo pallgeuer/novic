@@ -4052,9 +4052,9 @@ def load_checkpoint_paths(cfg: omegaconf.DictConfig, hydra_dir: Optional[str] = 
 	return sorted(model_paths, reverse=True)
 
 # Load an embedding decoder model checkpoint
-def load_decoder_checkpoint(cfg: omegaconf.DictConfig, hydra_dir: Optional[str] = None, checkpoint_path: Optional[str] = None, target_config: Optional[embedders.TargetConfig] = None, data_config: Optional[embedding_dataset.DataConfig] = None) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+def load_decoder_checkpoint(cfg: Optional[omegaconf.DictConfig] = None, hydra_dir: Optional[str] = None, checkpoint_path: Optional[str] = None, target_config: Optional[embedders.TargetConfig] = None, data_config: Optional[embedding_dataset.DataConfig] = None) -> tuple[Optional[dict[str, Any]], Optional[str]]:
 
-	if checkpoint_path is None:
+	if checkpoint_path is None and cfg is not None:
 		checkpoint_path = cfg.load_model
 		if not checkpoint_path:
 			return None, None
@@ -4067,7 +4067,8 @@ def load_decoder_checkpoint(cfg: omegaconf.DictConfig, hydra_dir: Optional[str] 
 
 	checkpoint = torch.load(checkpoint_path, map_location='cpu')  # Note: We load to CPU for more control of GPU memory spikes, and because target configuration has tensors that need to stay on CPU
 
-	check_loaded_config(name='hydra config', using=utils.flatten_config(cfg), loaded=checkpoint['cfg_flat'], ignore=IGNORE_CFG_DIFFS)
+	if cfg is not None:
+		check_loaded_config(name='hydra config', using=utils.flatten_config(cfg), loaded=checkpoint['cfg_flat'], ignore=IGNORE_CFG_DIFFS)
 	if target_config is not None:
 		check_loaded_config(name='target config', using=dataclasses.asdict(target_config), loaded=checkpoint['target_config'])
 	if data_config is not None:
