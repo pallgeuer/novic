@@ -283,13 +283,16 @@ class Embedder:
 	def inference_mode(self):
 		# Context manager that temporarily sets up PyTorch inference mode and AMP for running model inferences
 		with torch.inference_mode():
-			if self.amp_context is None or self.amp_context_entered:
+			if self.amp_context_entered:
 				yield
 			else:
 				self.amp_context_entered = True
 				try:
-					with self.amp_context:
+					if self.amp_context is None:
 						yield
+					else:
+						with self.amp_context:
+							yield
 				finally:
 					self.amp_context_entered = False
 
