@@ -18,8 +18,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs \
     conda run -p /env python -m pip install --no-cache-dir torch=="$PYTORCH" torchvision 'numpy<2' --index-url https://download.pytorch.org/whl/cu"$CUDAVER" && \
     conda run -p /env python -m pip install --no-cache-dir datasets filelock 'huggingface_hub<1' hydra-core packaging pyyaml regex requests safetensors tqdm transformers=="$TRANSFORMERS" optimum=="$OPTIMUM" accelerate ftfy timm=="$TIMM" sentencepiece unidecode tabulate scipy scikit-learn shapely tensorboard catkin-pkg empy pycocotools ultralytics wandb openai open_clip_torch=="$OPENCLIP" git+https://github.com/openai/CLIP.git git+https://github.com/facebookresearch/sam2.git && \
     conda run -p /env python -m pip uninstall -y opencv-python && \
-    conda run -p /env python -m pip install --no-cache-dir opencv-python-headless && \
-    conda run -p /env python -m pip check && sleep 5s
+    conda run -p /env python -m pip install --no-cache-dir opencv-python-headless
 
 ENV PATH="/env/bin:$PATH"
 
