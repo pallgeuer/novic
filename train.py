@@ -38,6 +38,7 @@ import timm.optim
 import logger
 from logger import log
 import utils
+import utils_config
 import classification_dataset
 import embedders
 import embedding_dataset
@@ -104,13 +105,13 @@ def main(cfg: omegaconf.DictConfig):
 		name=cfg.wandb_name,
 		tags=wandb_tags,
 		dir=wandb_log_dir,
-		config=utils.wandb_from_omegaconf(cfg, hydra_dir=hydra_dir, hydra_name=os.path.basename(hydra_dir)),
+		config=utils_config.wandb_from_omegaconf(cfg, hydra_dir=hydra_dir, hydra_name=os.path.basename(hydra_dir)),
 	):
 
 		if use_wandb:
 			log.info(f"Wandb run: {wandb.run.name} ({wandb.run.url})")
 			log.info(f"Wandb run path: {wandb.run._settings.sync_dir}")  # noqa
-			utils.print_wandb_config(newline=False)
+			utils_config.print_wandb_config(newline=False)
 
 		if cfg.action == 'test_data_loader':
 			action_test_data_loader(cfg=cfg)
@@ -1285,7 +1286,7 @@ def action_train(cfg: omegaconf.DictConfig, hydra_dir: str, use_wandb: bool):
 		model = finalise_decoder_model(cfg=cfg, model=model)
 
 		training_loop(
-			cfg_flat=utils.flatten_config(cfg),
+			cfg_flat=utils_config.flatten_config(cfg),
 			C=train_loop_config,
 			S=train_loop_state,
 			model=model,
@@ -1746,7 +1747,7 @@ def action_fix_checkpoints(cfg: omegaconf.DictConfig, hydra_dir: str):
 				num_invalid_target_nouns = dataset.num_invalid_targets
 
 			checkpoint = torch.load(model_path, map_location='cpu')
-			assert {key: value for key, value in utils.flatten_config(localcfg).items() if key in all_configs} == {key: value for key, value in checkpoint['cfg_flat'].items() if key in all_configs}
+			assert {key: value for key, value in utils_config.flatten_config(localcfg).items() if key in all_configs} == {key: value for key, value in checkpoint['cfg_flat'].items() if key in all_configs}
 			assert target_nouns is not None and num_invalid_target_nouns is not None
 			checkpoint.update(target_nouns=target_nouns, num_invalid_target_nouns=num_invalid_target_nouns)
 
@@ -2821,7 +2822,7 @@ def infer_model(
 				model_dir=os.path.basename(os.path.dirname(model_path)),
 				model_name=os.path.basename(model_path),
 				model_cfg=model_cfg_flat,
-				infer_cfg=utils.flatten_config(cfg),
+				infer_cfg=utils_config.flatten_config(cfg),
 				guide_targets=sorted(infer_targets_set),
 				vocab_targets=sorted(model_targets_set),
 				samples=samples,
@@ -4067,7 +4068,7 @@ def load_decoder_checkpoint(cfg: omegaconf.DictConfig, hydra_dir: Optional[str] 
 
 	checkpoint = torch.load(checkpoint_path, map_location='cpu')  # Note: We load to CPU for more control of GPU memory spikes, and because target configuration has tensors that need to stay on CPU
 
-	check_loaded_config(name='hydra config', using=utils.flatten_config(cfg), loaded=checkpoint['cfg_flat'], ignore=IGNORE_CFG_DIFFS)
+	check_loaded_config(name='hydra config', using=utils_config.flatten_config(cfg), loaded=checkpoint['cfg_flat'], ignore=IGNORE_CFG_DIFFS)
 	if target_config is not None:
 		check_loaded_config(name='target config', using=dataclasses.asdict(target_config), loaded=checkpoint['target_config'])
 	if data_config is not None:

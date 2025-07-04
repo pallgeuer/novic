@@ -23,8 +23,6 @@ import numpy as np
 import torch
 import torch.utils.data
 import torch.backends.cudnn
-import omegaconf
-import wandb
 from logger import log
 
 # Constants
@@ -255,41 +253,6 @@ class ImageDataset(torch.utils.data.Dataset):
 		loader = torch.utils.data.DataLoader(self, batch_size=batch_size, num_workers=dataset_workers, shuffle=True, pin_memory=not device_is_cpu, drop_last=False)
 		log.info(f"Created shuffled image data loader for {len(self)} images with {len(loader)} batches of nominal size {loader.batch_size} and {loader.num_workers} workers and no sample dropping")
 		return loader
-
-#
-# Configuration utilities
-#
-
-# Flatten the configuration to a single-level dictionary
-def flatten_config(cfg: omegaconf.DictConfig) -> dict[str, Any]:
-	return flatten_dict(omegaconf.OmegaConf.to_container(cfg, resolve=True))
-
-# Convert an OmegaConf configuration to a wandb configuration
-def wandb_from_omegaconf(cfg, **cfg_kwargs):
-	cfg_dict = omegaconf.OmegaConf.to_container(cfg)
-	cfg_dict = flatten_dict(cfg_dict)
-	cfg_dict = {k: (format(v) if isinstance(v, list) else v) for k, v in cfg_dict.items() if not (k == 'wandb' or k.startswith('wandb_'))}
-	cfg_dict.update(cfg_kwargs)
-	return cfg_dict
-
-# Print wandb configuration
-def print_wandb_config(C=None, newline=True):
-	if C is None:
-		C = wandb.config
-	print("Wandb configuration:")
-	# noinspection PyProtectedMember
-	for key, value in C._items.items():
-		if key == '_wandb':
-			if value:
-				print("  wandb:")
-				for wkey, wvalue in value.items():
-					print(f"    {wkey}: {wvalue}")
-			else:
-				print("  wandb: -")
-		else:
-			print(f"  {key}: {value}")
-	if newline:
-		print()
 
 #
 # Debug utilities
