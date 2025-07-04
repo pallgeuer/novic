@@ -13,10 +13,22 @@ from typing import Union, Optional, Sequence, Callable, Any
 import tqdm
 import PIL.Image
 import torch
-import clip
-import open_clip
-import transformers
-import optimum.bettertransformer
+try:
+	import clip  # noqa
+except ModuleNotFoundError:
+	clip = None
+try:
+	import open_clip  # noqa
+except ModuleNotFoundError:
+	open_clip = None
+try:
+	import transformers  # noqa
+except ModuleNotFoundError:
+	transformers = None
+try:
+	import optimum.bettertransformer  # noqa
+except ModuleNotFoundError:
+	optimum = None
 from logger import log
 import utils
 
@@ -245,7 +257,7 @@ class Embedder:
 		# Note: The embedder target vocabulary (target_vocab) should strictly only include valid target nouns (e.g. not a leading empty string used to signify invalid targets or such)
 		self.target_config = target_config
 		self.target_vocab = target_vocab if isinstance(target_vocab, tuple) else tuple(target_vocab)
-		self.target_configuration = {key: (value.tolist() if isinstance(value, torch.Tensor) else str(value) if isinstance(value, torch.dtype) else value) for key, value in dataclasses.asdict(target_config).items()}
+		self.target_configuration = {key: (value.tolist() if isinstance(value, torch.Tensor) else str(value) if isinstance(value, torch.dtype) else value) for key, value in dataclasses.asdict(target_config).items()}  # noqa
 
 	def get_configuration(self, main_config: bool, target_config: bool, target_exclude: Optional[set[str]] = None, target_override: Optional[dict[str, Any]] = None) -> dict[str, Any]:
 		configuration = self.configuration.copy() if main_config else {}
@@ -454,7 +466,7 @@ class OpenAIEmbedder(Embedder):
 
 		self.model_name = model_name
 
-		self.tokenizer = clip.clip._tokenizer
+		self.tokenizer = clip.clip._tokenizer  # noqa
 		log.info(f"Loaded OpenAI tokenizer for '{self.model_name}'")
 
 		self.model = None
@@ -463,7 +475,7 @@ class OpenAIEmbedder(Embedder):
 		self.model_encode_image = None
 
 		super().__init__(
-			configuration={'model_name': self.model_name, 'model_checkpoint': clip.clip._MODELS[self.model_name]},
+			configuration={'model_name': self.model_name, 'model_checkpoint': clip.clip._MODELS[self.model_name]},  # noqa
 			context_length=self.CONTEXT_LENGTH,
 			vocab_size=len(self.tokenizer.encoder),
 			cased_tokens=False,
@@ -486,7 +498,7 @@ class OpenAIEmbedder(Embedder):
 
 	def load_model(self) -> bool:
 		if self.model is None:
-			self.model, self.preprocess_image = clip.load(self.model_name, device=self.device, download_root=self.CACHE_HOME)
+			self.model, self.preprocess_image = clip.load(self.model_name, device=self.device, download_root=self.CACHE_HOME)  # noqa
 			self.model.eval()
 			self.model_encode_text = torch.compile(self.model.encode_text) if self.compile_model else self.model.encode_text
 			self.model_encode_image = torch.compile(self.model.encode_image) if self.compile_model else self.model.encode_image
@@ -557,7 +569,7 @@ class OpenAIEmbedder(Embedder):
 			token_ids = padded_token_ids
 
 		if self.check:
-			check_token_ids = clip.tokenize(texts=tokens_dict['text'])
+			check_token_ids = clip.tokenize(texts=tokens_dict['text'])  # noqa
 			check_token_ids[torch.eq(check_token_ids, self.end_token_id).cummax(dim=1)[0]] = self.pad_token_id  # Note: Robustly change all tokens at and beyond the first end token to the required padding token (assumes padding token = end token)
 			if self.device.type != 'cpu':
 				check_token_ids = check_token_ids.pin_memory().to(device=self.device, non_blocking=True)
@@ -773,7 +785,7 @@ class TransformersEmbedder(Embedder):
 		self.use_optimum = use_optimum
 
 		log.info(f"Loading Transformers configuration for '{self.model_id}'")
-		self.config = transformers.AutoConfig.from_pretrained(self.model_id)
+		self.config = transformers.AutoConfig.from_pretrained(self.model_id)  # noqa
 		self.model_type = self.config.model_type.upper()
 		with contextlib.suppress(AttributeError):  # Example: laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K, laion/CLIP-ViT-bigG-14-laion2B-39B-b160k
 			if self.config.text_config.projection_dim != self.config.projection_dim:
@@ -788,7 +800,7 @@ class TransformersEmbedder(Embedder):
 		if tokenizer_model_id.startswith('facebook/metaclip-'):  # Note: Should check whether this is ever actually fixed (e.g. https://huggingface.co/facebook/metaclip-h14-fullcc2.5b/discussions/1)
 			tokenizer_model_id = 'openai/clip-vit-base-patch32'
 			log.info(f"Facebook MetaCLIP tokenizer definition is dodgy but should be equivalent to '{tokenizer_model_id}', so hacking together that tokenizer instead!")
-		self.tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_model_id)
+		self.tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_model_id)  # noqa
 		log.info(f"Loaded Transformers {self.model_type} tokenizer for '{self.model_id}': {type(self.tokenizer).__qualname__}")
 
 		start_token_id = self.tokenizer.bos_token_id if self.tokenizer.bos_token_id is not None else self.tokenizer.cls_token_id
@@ -831,8 +843,8 @@ class TransformersEmbedder(Embedder):
 
 	def load_model(self) -> bool:
 		if self.model is None:
-			self.model = transformers.AutoModel.from_pretrained(self.model_id, config=self.config, device_map=self.device)
-			self.image_processor = transformers.AutoImageProcessor.from_pretrained(self.model_id, config=self.config)
+			self.model = transformers.AutoModel.from_pretrained(self.model_id, config=self.config, device_map=self.device)  # noqa
+			self.image_processor = transformers.AutoImageProcessor.from_pretrained(self.model_id, config=self.config)  # noqa
 			if self.use_optimum:
 				self.model = optimum.bettertransformer.BetterTransformer.transform(self.model)
 			self.model.eval()
