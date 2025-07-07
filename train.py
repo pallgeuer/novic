@@ -79,10 +79,7 @@ def main(cfg: omegaconf.DictConfig):
 	log.info(f"Hydra output dir: {hydra_dir}")
 	log.info(f"Run configuration:\n{omegaconf.OmegaConf.to_yaml(cfg).strip()}")
 
-	allow_tf32 = bool(cfg.allow_tf32)
-	torch.backends.cuda.matmul.allow_tf32 = allow_tf32
-	torch.backends.cudnn.allow_tf32 = allow_tf32
-	log.info(f"TF32 tensor cores are {'enabled' if allow_tf32 else 'disabled'}")
+	utils.allow_tf32(enable=cfg.allow_tf32)
 	utils.set_determinism(deterministic=cfg.determ, seed=cfg.determ_seed, cudnn_benchmark_mode=cfg.cudnn_bench)
 
 	wandb_log_dir = os.environ.get('WANDB_DIR') or os.path.join(os.path.dirname(os.path.realpath(__file__)), 'log')

@@ -115,6 +115,13 @@ def get_activation_gain(name: str, functional: bool, unit_std: bool) -> tuple[Ca
 # Training utilities
 #
 
+# Set whether TF32 should be allowed
+def allow_tf32(enable: bool):
+	allow = bool(enable)
+	torch.backends.cuda.matmul.allow_tf32 = allow
+	torch.backends.cudnn.allow_tf32 = allow
+	log.info(f"TF32 tensor cores are {'enabled' if allow else 'disabled'}")
+
 # Set whether execution should be deterministic (as much as possible)
 def set_determinism(deterministic, seed=1, cudnn_benchmark_mode=False):
 	# See: https://pytorch.org/docs/stable/notes/randomness.html
