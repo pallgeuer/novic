@@ -47,6 +47,7 @@ import embedding_cache
 import embedding_cache_writers
 import embedding_decoder
 import embedding_noise
+import infer
 
 # Environment variables
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'  # We do not use tokenizers inside the forked dataloader, so it is safe to enable tokenizer parallelism for positive speed benefit (Note: The open_clip library sets this to false during the imports above)
@@ -165,92 +166,13 @@ class ModelInfo:
 	model_dir: str
 	model_name: str
 
-# Generation config class
-@dataclasses.dataclass(frozen=True)
-class GenerationConfig:
-
-	method: str            # Decoding method (Available: greedy, beam, all)
-	topk: int              # If not greedy, number of top nouns to generate
-	vocab_prior: bool      # If not greedy, whether to score tokens relative to their prior distribution
-	vocab_per_token: bool  # If not greedy and if vocab_prior, whether vocab priors are on a per-token or per-target basis
-	vocab_scaler: float    # If not greedy and if vocab_prior, dimensionless scaler for the effect of vocab priors
-	guided: bool           # Whether decoding should be guided
-	guide_renorm: bool     # If guided, whether guiding should affect/renormalise the scores
-	temperature: float     # Temperature to divide the logits by prior to softmax during decoding (must be positive non-zero)
-	length_alpha: float    # Length normalisation factor alpha (nominally 0-1)
-	name: str = dataclasses.field(init=False)  # Compact string name summarising the generation config
-
-	def __post_init__(self):
-		object.__setattr__(self, 'name', self.generate_name())
-
-	def generate_name(self) -> str:
-		vocab_prior = f"{'tok' if self.vocab_per_token else 'tgt'}{utils.format_semifix(self.vocab_scaler, precision=3)}" if self.vocab_prior else 'none'
-		return f"{self.method}_k{self.topk}_v{vocab_prior}_g{'n' if not self.guided else 'r' if self.guide_renorm else 'p'}_t{utils.format_semifix(self.temperature, precision=3)}_a{utils.format_semifix(self.length_alpha, precision=3)}"
-
-	@staticmethod
-	def from_name(name: str) -> GenerationConfig:
-
-		parts = name.split('_')
-		method = parts[0]
-
-		topk = 0  # Required (0 is an invalid value that will error below)
-		vocab_prior = False
-		vocab_per_token = False
-		vocab_scaler = 0.0
-		guided = False
-		guide_renorm = False
-		tau = 1.0
-		alpha = 0.0
-
-		for part in itertools.islice(parts, 1, None):
-			if not part:
-				raise ValueError(f"Unexpected multiple underscores in generation configuration: {name}")
-			prefix = part[:1]
-			value = part[1:]
-			try:
-				if prefix == 'k':
-					topk = int(value)
-				elif prefix == 'v':
-					if value != 'none':
-						vocab_prior = True
-						match = re.fullmatch(r'(tok|tgt)(.*)', value)
-						try:
-							vocab_per_token = (match.group(1) == 'tok')
-							vocab_scaler = float(match.group(2))
-						except (AttributeError, ValueError):
-							raise ValueError(f"Invalid vocab prior specification: {value}")
-				elif prefix == 'g':
-					if value not in ('n', 'p', 'r'):
-						raise ValueError(f"Invalid guide specification: {value}")
-					guided = (value != 'n')
-					guide_renorm = (value == 'r')
-				elif prefix == 't':
-					tau = float(value)
-				elif prefix == 'a':
-					alpha = float(value)
-				else:
-					raise ValueError(f"Invalid prefix: {prefix}")
-			except ValueError:
-				raise ValueError(f"Failed to parse generation configuration part: {part}")
-
-		gencfg = GenerationConfig(method=method, topk=topk, vocab_prior=vocab_prior, vocab_per_token=vocab_per_token, vocab_scaler=vocab_scaler, guided=guided, guide_renorm=guide_renorm, temperature=tau, length_alpha=alpha)
-		if gencfg.method not in ('greedy', 'beam', 'all'):
-			raise ValueError(f"Invalid generation configuration method: {gencfg.method}")
-		if gencfg.topk < 1:
-			raise ValueError(f"Missing or invalid non-positive generation configuration top-k: {gencfg.topk}")
-		if gencfg.temperature <= 0:
-			raise ValueError(f"Invalid non-positive generation configuration temperature tau: {gencfg.temperature}")
-		assert gencfg.name == name
-
-		return gencfg
-
 # Generation task class
 @dataclasses.dataclass(eq=False)
 class GenerationTask:
 
 	COLOR_MAP = ('\033[92m', '\033[35m', '\033[33m', '\033[91m')           # ANSI colors corresponding to the 'result' field values
 
-	gencfg: GenerationConfig                                               # Generation configuration
+	gencfg: infer.GenerationConfig                                         # Generation configuration
 	precompute: Optional[Any] = None                                       # Any precomputed task data if required
 	target: Optional[torch.Tensor] = None                                  # BxKxC predicted token IDs tensor
 	target_padding: Optional[torch.Tensor] = None                          # BxKxC predicted token padding tensor
@@ -274,7 +196,7 @@ class GenerationTask:
 # Generation task list class
 class GenerationTaskList:
 
-	def __init__(self, gencfgs: Sequence[GenerationConfig], model: embedding_decoder.EmbeddingDecoder, vocab_targets_set: set[str], vocab_targets: Optional[torch.Tensor], guide_targets_set: set[str], guide_targets: Optional[torch.Tensor], class_lists: Optional[Sequence[Sequence[str]]] = None):
+	def __init__(self, gencfgs: Sequence[infer.GenerationConfig], model: embedding_decoder.EmbeddingDecoder, vocab_targets_set: set[str], vocab_targets: Optional[torch.Tensor], guide_targets_set: set[str], guide_targets: Optional[torch.Tensor], class_lists: Optional[Sequence[Sequence[str]]] = None):
 		self.gencfgs = gencfgs
 		self.model = model
 		self.vocab_targets_set = vocab_targets_set
@@ -2330,11 +2252,11 @@ def eval_cls_decoding(
 	model_paths: Sequence[str],
 	model_path_tails: Sequence[str],
 	data_config: embedding_dataset.DataConfig,
-	gencfgs: Sequence[GenerationConfig],
+	gencfgs: Sequence[infer.GenerationConfig],
 	device: torch.device,
 	device_is_cpu: bool,
 	amp_context: ContextManager,
-) -> Optional[tuple[str, tuple[GenerationConfig, ...], torch.Tensor, torch.Tensor]]:
+) -> Optional[tuple[str, tuple[infer.GenerationConfig, ...], torch.Tensor, torch.Tensor]]:
 
 	with embedder.inference_model():
 
@@ -2459,11 +2381,11 @@ def eval_cls_decoding_single(
 	cls_classes: Sequence[str],
 	dataset_batches: list[tuple[torch.Tensor, list[int], Optional[list[str]]]],
 	data_config: embedding_dataset.DataConfig,
-	gencfgs: Sequence[GenerationConfig],
+	gencfgs: Sequence[infer.GenerationConfig],
 	device: torch.device,
 	device_is_cpu: bool,
 	amp_context: ContextManager,
-) -> tuple[tuple[GenerationConfig, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], ...]:
+) -> tuple[tuple[infer.GenerationConfig, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], ...]:
 
 	checkpoint, checkpoint_path, model_targets, model_targets_set, vocab_targets = load_decoder_checkpoint_generate(cfg=cfg, embedder=embedder, model_path=model_path, device=device, device_is_cpu=device_is_cpu)
 
@@ -2725,7 +2647,7 @@ def infer_model(
 	model_path: str,
 	model_path_tail: str,
 	data_config: embedding_dataset.DataConfig,
-	gencfgs: tuple[GenerationConfig, ...],
+	gencfgs: tuple[infer.GenerationConfig, ...],
 	infer_targets: Optional[tuple[str, ...]],
 	device: torch.device,
 	device_is_cpu: bool,
@@ -3694,14 +3616,7 @@ def action_sample_images(cfg: omegaconf.DictConfig, hydra_dir: str):
 
 # Load the PyTorch device
 def load_device(cfg: omegaconf.DictConfig, device: Optional[str] = None) -> tuple[torch.device, bool, bool]:
-	device = torch.device(cfg.device if device is None else device)
-	if device.type == 'cuda' and not torch.cuda.is_available():
-		log.warning("No CUDA device is available => Running on CPU instead")
-		device = torch.device('cpu')
-	device = torch.empty(size=(), device=device).device  # Note: This is required to ensure a resolved device index, as device(type='cuda') != device(type='cuda', index=0) even if there is only one CUDA device and tensor.device always has a resolved index
-	device_is_cpu = (device.type == 'cpu')
-	device_is_cuda = (device.type == 'cuda')
-	return device, device_is_cpu, device_is_cuda
+	return infer.load_device(cfg.device if device is None else device)
 
 # Load the embedder
 def load_embedder(cfg: omegaconf.DictConfig, device: torch.device, load_model: bool = False, check_consistent: bool = False) -> embedders.Embedder:
@@ -3892,20 +3807,20 @@ def gen_data_config(cfg: omegaconf.DictConfig, dataset: embedding_dataset.Embedd
 	return data_config
 
 # Load the required generation configuration
-def load_generation_config(cfg: omegaconf.DictConfig, **default_kwargs) -> GenerationConfig:
+def load_generation_config(cfg: omegaconf.DictConfig, **default_kwargs) -> infer.GenerationConfig:
 
 	if cfg.gencfg:
 		gencfg_spec = cfg.gencfg
 	else:
 		default_gencfg = dict(method='greedy', topk=1, vocab_prior=False, vocab_per_token=False, vocab_scaler=0, guided=False, guide_renorm=False, temperature=1, length_alpha=0)
-		gencfg_spec = GenerationConfig(**{**default_gencfg, **default_kwargs}).name
+		gencfg_spec = infer.GenerationConfig(**{**default_gencfg, **default_kwargs}).name
 
-	gencfg = GenerationConfig.from_name(name=gencfg_spec)
+	gencfg = infer.GenerationConfig.from_name(name=gencfg_spec)
 	log.info(f"Using generation config: {gencfg.name}")
 	return gencfg
 
 # Load the required list of generation configurations with some deduplication and preprocessing
-def load_generation_configs(cfg: omegaconf.DictConfig, **default_kwargs) -> tuple[GenerationConfig, ...]:
+def load_generation_configs(cfg: omegaconf.DictConfig, **default_kwargs) -> tuple[infer.GenerationConfig, ...]:
 
 	gencfg_specs = []  # Note: We go from values to string to generation config in order to ensure that the result is exactly equivalent to specifying the generation config by name in future runs
 	if cfg.gencfgs:
@@ -3940,11 +3855,11 @@ def load_generation_configs(cfg: omegaconf.DictConfig, **default_kwargs) -> tupl
 							for alpha in cfg.gencfg_alpha:
 								if is_greedy:
 									alpha = 0  # Note: Changes target noun scores but NOT which target noun is decoded
-								gencfg_specs.append(GenerationConfig(method=method, topk=topk, vocab_prior=vocab_prior, vocab_per_token=vocab_per_token, vocab_scaler=vocab_scaler, guided=guided, guide_renorm=guide_renorm, temperature=tau, length_alpha=alpha).name)
+								gencfg_specs.append(infer.GenerationConfig(method=method, topk=topk, vocab_prior=vocab_prior, vocab_per_token=vocab_per_token, vocab_scaler=vocab_scaler, guided=guided, guide_renorm=guide_renorm, temperature=tau, length_alpha=alpha).name)
 
 	if gencfg_specs:
 		gencfg_specs = dict.fromkeys(gencfg_specs)  # Deduplicate without losing order (all dict values are None)
-		gencfgs = tuple(GenerationConfig.from_name(name=gencfg_spec) for gencfg_spec in gencfg_specs)
+		gencfgs = tuple(infer.GenerationConfig.from_name(name=gencfg_spec) for gencfg_spec in gencfg_specs)
 	else:
 		gencfgs = (load_generation_config(cfg=cfg, **default_kwargs),)
 
@@ -3952,7 +3867,7 @@ def load_generation_configs(cfg: omegaconf.DictConfig, **default_kwargs) -> tupl
 	return gencfgs
 
 # Precompute data required for generation
-def model_precompute(model: embedding_decoder.EmbeddingDecoder, gencfg: GenerationConfig, vocab_targets: Optional[torch.Tensor], guide_targets: Optional[torch.Tensor], precompute_cache: Optional[dict[tuple[Any, ...], Any]] = None) -> Any:
+def model_precompute(model: embedding_decoder.EmbeddingDecoder, gencfg: infer.GenerationConfig, vocab_targets: Optional[torch.Tensor], guide_targets: Optional[torch.Tensor], precompute_cache: Optional[dict[tuple[Any, ...], Any]] = None) -> Any:
 
 	if gencfg.vocab_prior and vocab_targets is None:
 		raise ValueError("Generation config specifies to use vocab priors but no vocab targets were provided")
@@ -3978,7 +3893,7 @@ def model_precompute(model: embedding_decoder.EmbeddingDecoder, gencfg: Generati
 	return precompute
 
 # Generate the output of a model given a particular generation configuration
-def model_generate(model: embedding_decoder.EmbeddingDecoder, embeds: torch.Tensor, gencfg: GenerationConfig, vocab_targets: Optional[torch.Tensor], guide_targets: Optional[torch.Tensor], precompute: Optional[Any] = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def model_generate(model: embedding_decoder.EmbeddingDecoder, embeds: torch.Tensor, gencfg: infer.GenerationConfig, vocab_targets: Optional[torch.Tensor], guide_targets: Optional[torch.Tensor], precompute: Optional[Any] = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 	# Returns BxKxC tensor of token IDs, BxKxC tensor of token paddings, and BxK tensor of scores in descending order for each individual K (K = 1 for greedy)
 	# Note: vocab_targets and/or guide_targets can be None if gencfg does not require them
 	# Note: precompute can only be provided for the 'all' generation method
@@ -4587,6 +4502,6 @@ def format_ratio_str(value: float) -> str:
 #
 
 # Run main function
-if __name__ == "__main__":
+if __name__ == '__main__':
 	main()
 # EOF
