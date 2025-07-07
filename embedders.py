@@ -627,7 +627,7 @@ class OpenCLIPEmbedder(Embedder):
 			raise RuntimeError(f"Unsupported OpenCLIP tokenizer type: {type(self.tokenizer).__qualname__}")
 		log.info(f"Loaded Hugging Face tokenizer: {type(self.tokenizer.tokenizer).__qualname__}")
 		self.strip_sep_token = self.tokenizer.strip_sep_token  # Example: openclip:rwightman/ViT-L-14-CLIPA-datacomp1B
-		self.tokenizer_clean = self.tokenizer.clean_fn is not open_clip.tokenizer._clean_whitespace  # noqa Correct for OpenCLIP 2.23, and assuming vocab/prompts are guaranteed whitespace-perfect
+		self.tokenizer_clean = self.tokenizer.clean_fn is not open_clip.tokenizer._clean_whitespace  # noqa / Correct for OpenCLIP 2.23, and assuming vocab/prompts are guaranteed whitespace-perfect
 		log.info(f"Loaded OpenCLIP tokenizer for '{self.model_id}': {type(self.tokenizer).__qualname__}{' with cleaning' if self.tokenizer_clean else ''}{' with strip sep token' if self.strip_sep_token else ''}")
 
 		start_token_id = self.tokenizer.tokenizer.bos_token_id if self.tokenizer.tokenizer.bos_token_id is not None else self.tokenizer.tokenizer.cls_token_id
