@@ -4256,22 +4256,7 @@ def load_guide_targets(guide_targets: tuple[str, ...], embedder: embedders.Embed
 
 # Load AMP for the embedding decoder model
 def load_decoder_amp(cfg: omegaconf.DictConfig, device: torch.device) -> tuple[ContextManager, Optional[torch.dtype]]:
-
-	amp_enabled = cfg.amp
-	if amp_enabled and (cfg.determ or device.type == 'cpu'):
-		log.warning("Decoder AMP was automatically disabled due to determinism or CPU device")
-		amp_enabled = False
-
-	if amp_enabled:
-		amp_context = torch.autocast(device.type, dtype=torch.bfloat16 if cfg.amp_bf16 else None)
-		amp_dtype = amp_context.fast_dtype
-		log.info(f"Decoder AMP is enabled with dtype {amp_dtype}")
-	else:
-		amp_context = contextlib.nullcontext()
-		amp_dtype = None
-		log.info("Decoder AMP is disabled")
-
-	return amp_context, amp_dtype
+	return infer.load_decoder_amp(enabled=cfg.amp, bf16=cfg.amp_bf16, determ=cfg.determ, device=device)
 
 # Load the embedding decoder model
 def load_decoder_model(cfg: omegaconf.DictConfig, embedder: embedders.Embedder, data_config: embedding_dataset.DataConfig, checkpoint: Optional[dict[str, Any]]) -> embedding_decoder.EmbeddingDecoder:
