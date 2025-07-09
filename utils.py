@@ -352,16 +352,54 @@ def dataclass_to(data, **kwargs):
 		elif isinstance(value, torch.Tensor):
 			setattr(data, field.name, value.to(**kwargs))
 
-# Flatten a nested dict with string keys by joining them with dots
+# Flatten a nested dict with string keys by joining them with dots (no original string key may include a dot)
 def flatten_dict(D, parent_key=None):
 	F = {}
 	for k, v in D.items():
+		assert '.' not in k
 		new_key = f"{parent_key}.{k}" if parent_key else k
 		if isinstance(v, dict):
 			F.update(flatten_dict(v, parent_key=new_key))
 		else:
 			F[new_key] = v
 	return F
+
+# Unflatten a dict that was flattened by flatten_dict()
+def unflatten_dict(F):
+	D = {}
+	for c, v in F.items():
+		parts = c.split('.')
+		cursor = D
+		for part in parts[:-1]:
+			if part not in cursor:
+				cursor[part] = {}
+			cursor = cursor[part]
+			if not isinstance(cursor, dict):
+				raise ValueError(f"Nesting conflict at '{part}' while inserting '{c}'")
+		leaf = parts[-1]
+		if leaf in cursor:
+			raise ValueError(f"Nesting conflict at '{leaf}' while inserting '{c}'")
+		cursor[leaf] = v
+	return D
+
+# Attribute dict class
+class AttrDict(dict):
+
+	@classmethod
+	def from_dict(cls, D: dict[str, Any]):
+		return cls({k: cls.from_dict(v) if isinstance(v, dict) else v for k, v in D.items()})
+
+	def __getattr__(self, key: str) -> Any:
+		try:
+			return self[key]
+		except KeyError as e:
+			raise AttributeError(key) from e
+
+	def __setattr__(self, key: str, value: Any):
+		self[key] = value
+
+	def __delattr__(self, key: str):
+		del self[key]
 
 # Dump JSON to string with no indentation of lists
 def json_dumps(obj: Any, *, indent: Union[int, str, None] = None, **kwargs) -> str:
