@@ -6,6 +6,7 @@ from __future__ import annotations
 import gc
 import os
 import re
+import math
 import argparse
 import itertools
 import contextlib
@@ -284,7 +285,7 @@ class NOVICModel:
 			embeds=embeds.cpu(),
 			preds=tuple(tuple(' '.join(target.split()) for target in target_list) for target_list in self.gentask.target_str),
 			logprobs=tuple(tuple(score for score in score_list) for score_list in self.gentask.target_score),
-			probs=tuple(tuple(score for score in score_list) for score_list in self.gentask.target_score),
+			probs=tuple(tuple(math.exp(score) for score in score_list) for score_list in self.gentask.target_score),
 			types=tuple(tuple(PredictionType(result) for result in result_list) for result_list in self.gentask.result.tolist()),
 		)
 
@@ -777,8 +778,7 @@ def main():
 		pred_summaries = []
 		for image_batch in image_batches:
 			output = model.classify_images(images=image_batch)
-			# TODO: Show probs instead of logprobs once you have verified they are identical
-			pred_summaries.extend(' / '.join(f'{GenerationTask.COLOR_MAP[typ.value]}{pred}\033[0m = {logprob:.3g}' for pred, logprob, typ in itertools.islice(zip(sample_preds, sample_logprobs, sample_types, strict=True), 3)) for sample_preds, sample_logprobs, sample_types in zip(output.preds, output.logprobs, output.types, strict=True))
+			pred_summaries.extend(' / '.join(f'{GenerationTask.COLOR_MAP[typ.value]}{pred}\033[0m = {prob * 100:.3g}%' for pred, prob, typ in itertools.islice(zip(sample_preds, sample_probs, sample_types, strict=True), 3)) for sample_preds, sample_probs, sample_types in zip(output.preds, output.probs, output.types, strict=True))
 		for image_path, pred_summary in zip(args.images, pred_summaries, strict=True):
 			log.info(f"{image_path} --> {pred_summary}")
 
