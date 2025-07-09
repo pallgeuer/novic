@@ -11,7 +11,6 @@ import collections
 import dataclasses
 from typing import Sequence, Iterable, Optional, Union, Any
 import tqdm
-import PIL.Image
 import torch.nn.functional
 import torch.utils.data
 from logger import log
