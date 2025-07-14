@@ -578,7 +578,7 @@ class OpenAIEmbedder(Embedder):
 			elif not torch.equal(check_token_ids, token_ids):
 				raise ValueError("Token ID consistency check failed due to shape or value")
 
-		assert self.amp_context_entered and not self.model.training
+		assert (self.amp_context is None or self.amp_context_entered) and not self.model.training
 		text_features = self.model_encode_text(token_ids)
 		return torch.nn.functional.normalize(text_features.to(dtype=torch.float32), dim=-1)
 
@@ -589,7 +589,7 @@ class OpenAIEmbedder(Embedder):
 	def inference_image(self, images: torch.Tensor) -> torch.Tensor:
 		if self.device.type != 'cpu':
 			images = images.pin_memory().to(device=self.device, non_blocking=True)
-		assert self.amp_context_entered and not self.model.training
+		assert (self.amp_context is None or self.amp_context_entered) and not self.model.training
 		image_features = self.model_encode_image(images)
 		return torch.nn.functional.normalize(image_features.to(dtype=torch.float32), dim=-1)
 
@@ -748,7 +748,7 @@ class OpenCLIPEmbedder(Embedder):
 			elif not torch.equal(check_token_ids, token_ids):
 				raise ValueError("Token ID consistency check failed due to shape or value")
 
-		assert self.amp_context_entered and not self.model.training
+		assert (self.amp_context is None or self.amp_context_entered) and not self.model.training
 		text_features = self.model_encode_text(token_ids, normalize=False)
 		return torch.nn.functional.normalize(text_features.to(dtype=torch.float32), dim=-1)
 
@@ -759,7 +759,7 @@ class OpenCLIPEmbedder(Embedder):
 	def inference_image(self, images: torch.Tensor) -> torch.Tensor:
 		if self.device.type != 'cpu':
 			images = images.pin_memory().to(device=self.device, non_blocking=True)
-		assert self.amp_context_entered and not self.model.training
+		assert (self.amp_context is None or self.amp_context_entered) and not self.model.training
 		image_features = self.model_encode_image(images, normalize=False)
 		return torch.nn.functional.normalize(image_features.to(dtype=torch.float32), dim=-1)
 
@@ -886,7 +886,7 @@ class TransformersEmbedder(Embedder):
 	def inference_tokens(self, tokens_dict: dict[str, Any]) -> torch.Tensor:
 		if self.device.type != 'cpu':
 			tokens_dict = {key: tensor.pin_memory().to(device=self.device, non_blocking=True) for key, tensor in tokens_dict.items()}
-		assert self.amp_context_entered and not self.model.training
+		assert (self.amp_context is None or self.amp_context_entered) and not self.model.training
 		text_features = self.model_get_text_features(**tokens_dict)
 		return torch.nn.functional.normalize(text_features.to(dtype=torch.float32), dim=-1)
 
@@ -902,7 +902,7 @@ class TransformersEmbedder(Embedder):
 	def inference_image(self, images: torch.Tensor) -> torch.Tensor:
 		if self.device.type != 'cpu':
 			images = images.pin_memory().to(device=self.device, non_blocking=True)
-		assert self.amp_context_entered and not self.model.training
+		assert (self.amp_context is None or self.amp_context_entered) and not self.model.training
 		image_features = self.model_get_image_features(pixel_values=images)
 		return torch.nn.functional.normalize(image_features.to(dtype=torch.float32), dim=-1)
 # EOF
