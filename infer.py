@@ -289,6 +289,11 @@ class NOVICModel:
 			types=tuple(tuple(PredictionType(result) for result in result_list) for result_list in self.gentask.result.tolist()),
 		)
 
+	def classify_image(self, image: PIL.Image.Image) -> NOVICOutput:
+		# image = PIL image to classify
+		# Returns the NOVIC classification output details
+		return self.classify_images(images=image)
+
 	def classify_images(self, images: Union[torch.Tensor, Iterable[PIL.Image.Image], PIL.Image.Image]) -> NOVICOutput:
 		# images = Image(s) to classify (CPU Bx3xHxW if tensor, PIL image(s) are first transformed/preprocessed)
 		# Returns the NOVIC classification output details
