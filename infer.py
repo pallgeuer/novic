@@ -45,6 +45,9 @@ class NOVICOutput:
 # NOVIC model class
 class NOVICModel:
 
+	gencfg: GenerationConfig
+	guide_targets: Optional[tuple[str, ...]]
+
 	def __init__(
 		self,
 		checkpoint: str,                                        # Decoder checkpoint to load
@@ -72,16 +75,16 @@ class NOVICModel:
 		del lazy_checkpoint, cfg_flat
 		gc.collect()
 
-		self.gencfg = GenerationConfig.from_name(name=gencfg)
-		log.info(f"Using generation config: {self.gencfg.name}")
+		self.gentask: Optional[GenerationTask] = None
+		self.guide_targets_tensor: Optional[torch.Tensor] = None
+		self.guide_targets_str_set: Optional[set[str]] = None
+		self.vocab_targets_tensor: Optional[torch.Tensor] = None
+		self.model_targets_set: Optional[set[str]] = None
+		self.model_targets: Optional[tuple[str, ...]] = None
+		self.decoder: Optional[embedding_decoder.EmbeddingDecoder] = None
 
-		if guide_targets is None:
-			self.guide_targets = None
-		elif isinstance(guide_targets, str):
-			with open(guide_targets, 'r') as file:
-				self.guide_targets = tuple(stripped_line for line in file if (stripped_line := line.strip()))
-		else:
-			self.guide_targets = tuple(guide_targets)
+		self.set_gencfg(gencfg=gencfg, update_task=False)
+		self.set_guide_targets(guide_targets=guide_targets, update_task=False)
 
 		self.torch_compile = torch_compile
 		self.batch_size = batch_size
@@ -112,11 +115,34 @@ class NOVICModel:
 		self.amp_context, self.amp_dtype = load_decoder_amp(enabled=self.cfg.amp, bf16=self.cfg.amp_bf16, determ=False, device=self.device)  # Assumes determinism is not required
 		self.data_config = embedding_dataset.DataConfig.create(data_config_dict=dict(use_weights=False, multi_target=False), use_targets=True)
 
-		self.gentask: Optional[GenerationTask] = None
-		self.decoder: Optional[embedding_decoder.EmbeddingDecoder] = None
-
 		self.amp_context_entered = False
 		self.__stack = contextlib.ExitStack()
+
+	def set_gencfg(self, gencfg: str, update_task: bool = True):
+		self.gencfg = GenerationConfig.from_name(name=gencfg)
+		log.info(f"Using generation config: {self.gencfg.name}")
+		if update_task:
+			self.update_gentask()
+
+	def set_guide_targets(self, guide_targets: Union[Iterable[str], str, None] = None, update_task: bool = True):
+
+		if guide_targets is None:
+			self.guide_targets = None
+		elif isinstance(guide_targets, str):
+			with open(guide_targets, 'r') as file:
+				self.guide_targets = tuple(stripped_line for line in file if (stripped_line := line.strip()))
+		else:
+			self.guide_targets = tuple(guide_targets)
+
+		self.update_guide_targets()
+		if update_task:
+			self.update_gentask()
+
+	def set_batch_size(self, batch_size: int):
+		self.batch_size = batch_size
+		self.embedder.tokenizer_batch_size = batch_size
+		self.embedder.inference_batch_size = batch_size
+		self.embedder.image_batch_size = batch_size
 
 	@contextlib.contextmanager
 	def decoder_model(self, release=True):
@@ -143,16 +169,13 @@ class NOVICModel:
 		checkpoint = torch.load(self.checkpoint, map_location='cpu')  # We load to CPU for more control of GPU memory spikes, and because target configuration has tensors that need to stay on CPU
 		load_target_config(checkpoint=checkpoint, embedder=self.embedder)
 
-		model_targets = self.embedder.target_vocab
-		model_targets_set = set(model_targets)
-		vocab_targets_tensor = self.embedder.tokenize_target(model_targets)[0]
+		self.model_targets = self.embedder.target_vocab
+		self.model_targets_set = set(self.model_targets)
+		self.vocab_targets_tensor = self.embedder.tokenize_target(self.model_targets)[0]
 		if not self.device_is_cpu:
-			vocab_targets_tensor = vocab_targets_tensor.to(device=self.device, non_blocking=True)
+			self.vocab_targets_tensor = self.vocab_targets_tensor.to(device=self.device, non_blocking=True)
 
-		guide_targets_str = self.guide_targets if self.guide_targets is not None else model_targets
-		if not ((guide_targets_str_set := set(guide_targets_str)) <= model_targets_set):
-			log.warning(f"Some guide target nouns are not in the set of trained model target nouns: {', '.join(sorted(guide_targets_str_set - model_targets_set))}")
-		guide_targets_tensor = load_guide_targets(guide_targets=guide_targets_str, embedder=self.embedder, device=self.device, device_is_cpu=self.device_is_cpu)
+		self.update_guide_targets()
 
 		with torch.inference_mode():
 			self.decoder = load_decoder_model(cfg=self.cfg, embedder=self.embedder, data_config=self.data_config, checkpoint=checkpoint)
@@ -167,23 +190,45 @@ class NOVICModel:
 		del checkpoint
 		gc.collect()
 
-		self.gentask = GenerationTask(
-			gencfg=self.gencfg,
-			decoder=self.decoder,
-			vocab_targets_set=model_targets_set,
-			vocab_targets=vocab_targets_tensor,
-			guide_targets_set=guide_targets_str_set,
-			guide_targets=guide_targets_tensor,
-			class_lists=None,
-		)
+		self.update_gentask()
 
 		return True
+
+	def update_guide_targets(self):
+		if self.model_targets is None:
+			self.guide_targets_str_set = None
+			self.guide_targets_tensor = None
+		else:
+			guide_targets_str = self.guide_targets if self.guide_targets is not None else self.model_targets
+			self.guide_targets_str_set = set(guide_targets_str)
+			if not (self.guide_targets_str_set <= self.model_targets_set):
+				log.warning(f"Some guide target nouns are not in the set of trained model target nouns: {', '.join(sorted(self.guide_targets_str_set - self.model_targets_set))}")
+			self.guide_targets_tensor = load_guide_targets(guide_targets=guide_targets_str, embedder=self.embedder, device=self.device, device_is_cpu=self.device_is_cpu)
+
+	def update_gentask(self):
+		if self.decoder is None:
+			self.gentask = None
+		else:
+			self.gentask = GenerationTask(
+				gencfg=self.gencfg,
+				decoder=self.decoder,
+				vocab_targets_set=self.model_targets_set,
+				vocab_targets=self.vocab_targets_tensor,
+				guide_targets_set=self.guide_targets_str_set,
+				guide_targets=self.guide_targets_tensor,
+				class_lists=None,
+			)
 
 	def unload_decoder(self) -> bool:
 		# Returns whether the decoder was unloaded (True = Newly unloaded, False = Was already unloaded)
 		if self.decoder is None:
 			return False
 		self.gentask = None
+		self.guide_targets_tensor = None
+		self.guide_targets_str_set = None
+		self.vocab_targets_tensor = None
+		self.model_targets_set = None
+		self.model_targets = None
 		self.decoder = None
 		log.info("Unloaded decoder model")
 		return True
