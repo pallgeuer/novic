@@ -163,6 +163,7 @@ cython_debug/
 .idea/
 
 # Outputs
+/data/gba_tasks
 /datasets
 /outputs
 /log
