@@ -18,7 +18,7 @@ Code release corresponding to the [WACV 2025 paper](https://www.arxiv.org/abs/24
 
 > :rocket: You can immediately try out NOVIC yourself, using its dedicated [Hugging Face Spaces Demo](https://huggingface.co/spaces/pallgeuer/novic)!
 
-![](images/novic_spaces.png)
+[![NOVIC Hugging Face Spaces demo](images/novic_spaces.png)](https://huggingface.co/spaces/pallgeuer/novic)
 
 Upload your own test image or choose from one of the provided example images. Note that the [demo](https://huggingface.co/spaces/pallgeuer/novic) runs on CPU, so proper GPU inference is *much* faster (real-time) and more numerically accurate.
 
@@ -33,7 +33,7 @@ git clone https://github.com/pallgeuer/novic.git
 cd novic
 mkdir -p outputs && wget -q -O outputs/checkpoint.zip https://github.com/pallgeuer/novic/releases/download/v1.0.0/dfn5bl_ft0_ye2_ovod_20240628_142131.zip && unzip -q outputs/checkpoint.zip -d outputs && rm outputs/checkpoint.zip
 ```
-Launch the [NOVIC Docker image](https://hub.docker.com/r/pallgeuer/novic) that is available on Docker Hub (also see [Embedder Classification Test](#embedder-classification-test) for an extended `docker run` command that additionally binds a datasets directory on `/datasets`):
+Launch the [NOVIC Docker image](https://hub.docker.com/r/pallgeuer/novic) that is available on Docker Hub (see also [Embedder Classification Test](#embedder-classification-test) for a `docker run` command that additionally binds a datasets directory on `/datasets`):
 ```bash
 export NOVIC=/path/to/novic  # <-- Set the path to the cloned NOVIC repository
 export WANDB_API_KEY=...     # <-- If you want to train a NOVIC model, the wandb account to use for logging
@@ -195,7 +195,7 @@ The datasets are now available in the `extras` subdirectory of the NOVIC reposit
 
 ### Download Classification Datasets
 
-You can download and configure a few classification benchmark datasets in order to test the embedders and models (compact instructions to download various further classification benchmark datasets can be found [here](https://github.com/pallgeuer/ReLish/blob/392de1cfbf346131ab1fc47a01eb620505ccc1af/benchmark/commands.txt#L118) under the heading `CLASSIFICATION DATASETS`):
+You can download and configure a few classification benchmark datasets in order to test the embedders and models (compact instructions to download various further classification benchmark datasets can be found [here](https://github.com/pallgeuer/model_testbed#download-datasets)):
 ```bash
 # Specify where the datasets will be downloaded to
 DATASETS=/path/to/datasets/dir  # <-- This folder should exist and will be the location of the downloaded datasets, e.g. "$NOVIC/datasets" or ~/Datasets
@@ -232,7 +232,7 @@ find "$IMAGENET1K_ROOT/ILSVRC-CLS/val" -name "*.JPEG" | wc -l  # <-- Should be 5
 Test the zero-shot classification performance of two different embedders on some of the datasets (requires approx. 11GiB GPU memory, use e.g. `batch_size_image=32` for less GPU memory requirements):
 ```bash
 cd /path/to/novic                          # <-- Change to the cloned NOVIC repository directory
-DATASETS=/path/to/classification/datasets  # <-- Replace with real root path of the classification datasets!
+DATASETS=/path/to/classification/datasets  # <-- Replace with real root path of the classification datasets
 for DSET in CIFAR10 Food101 ImageNet1K; do
     for EMBEDDER in openclip:timm/ViT-B-16-SigLIP openclip:apple/DFN5B-CLIP-ViT-H-14-378; do
         ./train.py action=embedder_zero_shot cls_dataset_root="$DATASETS" cls_dataset="$DSET" embedder_spec="$EMBEDDER" batch_size_image=128
@@ -256,9 +256,9 @@ If everything is set up and functioning correctly, you should get values very cl
 
 There are four main scripts in the repository:
 * `infer.py`: Defines a `NOVICModel` class intended for convenient model inference, and wraps the class in a CLI interface to allow single or batched inference on images.
-  > :bulb: Refer to `./infer.py --help` for help on the CLI interface, and refer to the inline documentation in the `NOVICModel` class for programmatic use of the NOVIC model!
+  > :bulb: Refer to `./infer.py --help` for help on the CLI interface, and refer to the inline documentation in the `NOVICModel` class for programmatic use of the NOVIC model
 * `train.py`: Allows creation, caching and management of datasets, as well as model training, evaluation, inference, and much more. The action to perform is supplied using `action=...` on the command line.
-  > :bulb: Refer to `config/train.yaml` for descriptions of all possible actions, embedder models, and command line arguments!
+  > :bulb: Refer to `config/train.yaml` for descriptions of all possible actions, embedder models, and command line arguments
 * `dataset_annotation.py`: Tool to annotate model predictions (JSON) made on an image set so that prediction scores can be computed (human annotation).
 * `gpt_annotation.py`: Uses multimodal OpenAI LLMs to perform 'ground truth' annotation of model predictions (JSON) made on an image set so that prediction scores can be computed (LLM annotation).
 
@@ -296,7 +296,7 @@ The following table summarizes the available pretrained NOVIC checkpoints (`-` i
 
 To achieve the most fine-grained and diverse predictions with very high prediction performance, choose `ovod_20240628_142131`. For slightly more stable predictions with similar performance all round, choose `ovod_20240620_162925`. For faster inference speeds while maintaining very high prediction performance, choose `ovod_20240626_001447`. For very fast inference speed with good prediction performance, choose `ovod_20240610_105233`.
 
-> :bulb: Refer to [Inference NOVIC Yourself](#inference-novic-yourself) and [Using a Checkpoint](#using-a-checkpoint) for examples how to use a NOVIC model checkpoint!
+> :bulb: Refer to [Inference NOVIC Yourself](#inference-novic-yourself) and [Using a Checkpoint](#using-a-checkpoint) for examples how to use a NOVIC model checkpoint
 
 ### Checkpoint Details
 
@@ -387,7 +387,7 @@ Then inside the appropriate Docker container or `conda` environment (ideally wit
 
 - To evaluate the performance of the model on a classification benchmark, e.g. like ImageNet-1K, do the following (Note: The evaluation speed often improves on successive calls due to the classification dataset then being in page cache already):
   ```bash
-  DATASETS=/path/to/classification/datasets  # <-- Replace with real root path of the classification datasets!
+  DATASETS=/path/to/classification/datasets  # <-- Replace with real root path of the classification datasets
   ./train.py action=eval_cls_decoding load_models="['$OVODSTAMP']" embedder_spec="$EMBEDDER" cls_dataset_root="$DATASETS" cls_datasets="['CIFAR10', 'ImageNet1K']" cls_split=valid class_names_variant=clip gencfgs="['beam_k10_vnone_gp_t1_a0']" batch_size_image=128
   ```
 
