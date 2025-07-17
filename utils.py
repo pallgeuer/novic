@@ -23,8 +23,6 @@ import numpy as np
 import torch
 import torch.utils.data
 import torch.backends.cudnn
-import omegaconf
-import wandb
 from logger import log
 
 # Constants
@@ -116,6 +114,13 @@ def get_activation_gain(name: str, functional: bool, unit_std: bool) -> tuple[Ca
 #
 # Training utilities
 #
+
+# Set whether TF32 should be allowed
+def allow_tf32(enable: bool):
+	allow = bool(enable)
+	torch.backends.cuda.matmul.allow_tf32 = allow
+	torch.backends.cudnn.allow_tf32 = allow
+	log.info(f"TF32 tensor cores are {'enabled' if allow else 'disabled'}")
 
 # Set whether execution should be deterministic (as much as possible)
 def set_determinism(deterministic, seed=1, cudnn_benchmark_mode=False):
@@ -257,41 +262,6 @@ class ImageDataset(torch.utils.data.Dataset):
 		return loader
 
 #
-# Configuration utilities
-#
-
-# Flatten the configuration to a single-level dictionary
-def flatten_config(cfg: omegaconf.DictConfig) -> dict[str, Any]:
-	return flatten_dict(omegaconf.OmegaConf.to_container(cfg, resolve=True))
-
-# Convert an OmegaConf configuration to a wandb configuration
-def wandb_from_omegaconf(cfg, **cfg_kwargs):
-	cfg_dict = omegaconf.OmegaConf.to_container(cfg)
-	cfg_dict = flatten_dict(cfg_dict)
-	cfg_dict = {k: (format(v) if isinstance(v, list) else v) for k, v in cfg_dict.items() if not (k == 'wandb' or k.startswith('wandb_'))}
-	cfg_dict.update(cfg_kwargs)
-	return cfg_dict
-
-# Print wandb configuration
-def print_wandb_config(C=None, newline=True):
-	if C is None:
-		C = wandb.config
-	print("Wandb configuration:")
-	# noinspection PyProtectedMember
-	for key, value in C._items.items():
-		if key == '_wandb':
-			if value:
-				print("  wandb:")
-				for wkey, wvalue in value.items():
-					print(f"    {wkey}: {wvalue}")
-			else:
-				print("  wandb: -")
-		else:
-			print(f"  {key}: {value}")
-	if newline:
-		print()
-
-#
 # Debug utilities
 #
 
@@ -382,16 +352,54 @@ def dataclass_to(data, **kwargs):
 		elif isinstance(value, torch.Tensor):
 			setattr(data, field.name, value.to(**kwargs))
 
-# Flatten a nested dict with string keys by joining them with dots
+# Flatten a nested dict with string keys by joining them with dots (no original string key may include a dot)
 def flatten_dict(D, parent_key=None):
 	F = {}
 	for k, v in D.items():
+		assert '.' not in k
 		new_key = f"{parent_key}.{k}" if parent_key else k
 		if isinstance(v, dict):
 			F.update(flatten_dict(v, parent_key=new_key))
 		else:
 			F[new_key] = v
 	return F
+
+# Unflatten a dict that was flattened by flatten_dict()
+def unflatten_dict(F):
+	D = {}
+	for c, v in F.items():
+		parts = c.split('.')
+		cursor = D
+		for part in parts[:-1]:
+			if part not in cursor:
+				cursor[part] = {}
+			cursor = cursor[part]
+			if not isinstance(cursor, dict):
+				raise ValueError(f"Nesting conflict at '{part}' while inserting '{c}'")
+		leaf = parts[-1]
+		if leaf in cursor:
+			raise ValueError(f"Nesting conflict at '{leaf}' while inserting '{c}'")
+		cursor[leaf] = v
+	return D
+
+# Attribute dict class
+class AttrDict(dict):
+
+	@classmethod
+	def from_dict(cls, D: dict[str, Any]):
+		return cls({k: cls.from_dict(v) if isinstance(v, dict) else v for k, v in D.items()})
+
+	def __getattr__(self, key: str) -> Any:
+		try:
+			return self[key]
+		except KeyError as e:
+			raise AttributeError(key) from e
+
+	def __setattr__(self, key: str, value: Any):
+		self[key] = value
+
+	def __delattr__(self, key: str):
+		del self[key]
 
 # Dump JSON to string with no indentation of lists
 def json_dumps(obj: Any, *, indent: Union[int, str, None] = None, **kwargs) -> str:

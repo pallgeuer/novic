@@ -1,0 +1,10 @@
+# python>=3.10
+# git+https://github.com/openai/CLIP.git
+# open_clip_torch==2.23
+# optimum
+# transformers
+numpy
+pillow
+torch
+tqdm
+unidecode
