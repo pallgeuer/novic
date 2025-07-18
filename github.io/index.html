@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="Given an image and nothing else, NOVIC can generate an accurate fine-grained textual classification label in real-time, with coverage of the vast majority of the English language.">
+  <meta name="keywords" content="NOVIC, AI, deep learning, open vocabulary, image classification">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NOVIC: Unconstrained Open Vocabulary Image Classification</title>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5JDV6QQD13"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5JDV6QQD13');
+  </script>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="./static/images/icon.png">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+<body>
+
+<nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <a class="navbar-item" href="#">
+      <span class="icon">
+          <i class="fas fa-home"></i>
+      </span>
+      </a>
+      <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          Other Work
+        </a>
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href="https://github.com/pallgeuer/novic">
+            NOVIC
+          </a>
+          <a class="navbar-item" href="https://github.com/pallgeuer/object_noun_dictionary">
+            Object Noun Dict
+          </a>
+          <a class="navbar-item" href="https://github.com/pallgeuer/chatty_robots">
+            Chatty Robots
+          </a>
+          <a class="navbar-item" href="https://github.com/pallgeuer/gpt_batch_api">
+            GPT Batch API
+          </a>
+          <a class="navbar-item" href="https://github.com/pallgeuer/model_testbed">
+            Model Testbed
+          </a>
+          <a class="navbar-item" href="https://github.com/pallgeuer/DeepStack">
+            DeepStack
+          </a>
+          <a class="navbar-item" href="https://github.com/AIS-Bonn/humanoid_op_ros">
+            Humanoid Soccer
+          </a>
+          <a class="navbar-item" href="https://arxiv.org/abs/2011.10339">
+            Bipedal Walking
+          </a>
+          <a class="navbar-item" href="https://github.com/AIS-Bonn/attitude_estimator">
+            Attitude Estimator
+          </a>
+          <a class="navbar-item" href="https://github.com/AIS-Bonn/rot_conv_lib">
+            3D Rotations
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">NOVIC: Unconstrained Open Vocabulary Image Classification: Zero-Shot Transfer from Text to Image via CLIP Inversion</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><a href="https://www.inf.uni-hamburg.de/en/inst/ab/wtm/people/allgeuer.html">Philipp Allgeuer</a>,</span>
+            <span class="author-block"><a href="https://www.inf.uni-hamburg.de/en/inst/ab/wtm/people/ahrens.html">Kyra Ahrens</a>,</span>
+            <span class="author-block"><a href="https://www.inf.uni-hamburg.de/en/inst/ab/wtm/people/wermter.html">Stefan Wermter</a></span>
+          </div>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">University of Hamburg, Knowledge Technology Group</span>
+          </div>
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="https://arxiv.org/abs/2407.11211"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://huggingface.co/spaces/pallgeuer/novic"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-rocket"></i>
+                  </span>
+                  <span>Demo</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://github.com/pallgeuer/novic"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                  </a>
+              </span>
+              <span class="link-block">
+                <a href="https://paperswithcode.com/dataset/ovic-datasets"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="far fa-images"></i>
+                  </span>
+                  <span>Datasets</span>
+                  </a>
+              </span>
+              <span class="link-block">
+                <a href="https://www.youtube.com/watch?v=vyR2QHUH9NY"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-youtube"></i>
+                  </span>
+                  <span>Presentation</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://paperswithcode.com/paper/unconstrained-open-vocabulary-image"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-code"></i>
+                  </span>
+                  <span>Papers With Code</span>
+                  </a>
+              </span>
+              <span class="link-block">
+                <a href="#bibtex"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-quote-left"></i>
+                  </span>
+                  <span>Cite</span>
+                  </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <h2 class="subtitle has-text-centered">
+        Given an image and nothing else, <span class="smcaps">NOVIC</span> can generate an accurate fine-grained textual classification label in real-time, with coverage of the vast majority of the English language.
+      </h2>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="bibtex">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@InProceedings{allgeuer_novic_2025,
+    author    = {Philipp Allgeuer and Kyra Ahrens and Stefan Wermter},
+    title     = {Unconstrained Open Vocabulary Image Classification: {Z}ero-Shot Transfer from Text to Image via {CLIP} Inversion},
+    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+    year      = {2025},
+}
+
+@Misc{github_novic,
+    title = {{NOVIC}: {U}nconstrained Open Vocabulary Image Classification},
+    author = {Philipp Allgeuer and Kyra Ahrens},
+    url = {https://github.com/pallgeuer/novic},
+}</code></pre>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link external-link" href="https://arxiv.org/abs/2407.11211">
+        <i class="fas fa-file-pdf"></i>
+      </a>
+      <a class="icon-link external-link" href="https://huggingface.co/spaces/pallgeuer/novic">
+        <i class="fas fa-rocket"></i>
+      </a>
+      <a class="icon-link external-link" href="https://github.com/pallgeuer/novic">
+        <i class="fab fa-github"></i>
+      </a>
+      <a class="icon-link external-link" href="https://paperswithcode.com/dataset/ovic-datasets">
+        <i class="far fa-images"></i>
+      </a>
+      <a class="icon-link external-link" href="https://www.youtube.com/watch?v=vyR2QHUH9NY">
+        <i class="fab fa-youtube"></i>
+      </a>
+      <a class="icon-link external-link" href="https://paperswithcode.com/paper/unconstrained-open-vocabulary-image">
+        <i class="fas fa-file-code"></i>
+      </a>
+      <a class="icon-link external-link" href="#bibtex">
+        <i class="fas fa-quote-left"></i>
+      </a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <div class="content has-text-centered">
+            <p>
+              The website template was adapted from <a href="https://github.com/nerfies/nerfies.github.io">NeRFies</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
