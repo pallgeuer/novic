@@ -9,6 +9,7 @@
 **Main Author:** Philipp Allgeuer
 
 Code release corresponding to the [WACV 2025 paper](https://www.arxiv.org/abs/2407.11211) that is also on [Papers With Code](https://paperswithcode.com/paper/unconstrained-open-vocabulary-image):
+- **Homepage:** [https://pallgeuer.github.io/novic](https://pallgeuer.github.io/novic)
 - **Paper:** Philipp Allgeuer, Kyra Ahrens, and Stefan Wermter: *Unconstrained Open Vocabulary Image Classification: Zero-Shot Transfer from Text to Image via CLIP Inversion*, WACV 2025 [[Link]](https://openaccess.thecvf.com/content/WACV2025/html/Allgeuer_Unconstrained_Open_Vocabulary_Image_Classification_Zero-Shot_Transfer_from_Text_to_WACV_2025_paper.html) [[Citation]](#citation)
 - **Video:** [WACV 2025 presentation](https://youtu.be/vyR2QHUH9NY) (the [video file](doc/WACV2025_NOVIC_Presentation.mp4) is also available in the `doc` directory of this repository, along with the [paper PDF](doc/WACV2025_NOVIC.pdf) and [poster PDF](doc/WACV2025_NOVIC_Poster.pdf))
 
