@@ -419,18 +419,18 @@ Below are some example predictions from the [WACV 2025 paper](https://www.arxiv.
 
 ## Citation
 
-If you use this project in your research, please cite this GitHub repository as well as the WACV 2025 paper:
-
+If you use this project in your research, please cite the WACV 2025 paper, possibly as well as this GitHub repository:
 ```bibtex
-@Misc{github_novic,
-    title = {{NOVIC}: {U}nconstrained Open Vocabulary Image Classification},
-    author = {Philipp Allgeuer and Kyra Ahrens},
-    url = {https://github.com/pallgeuer/novic},
-}
-
 @InProceedings{allgeuer_novic_2025,
     author    = {Philipp Allgeuer and Kyra Ahrens and Stefan Wermter},
     title     = {Unconstrained Open Vocabulary Image Classification: {Z}ero-Shot Transfer from Text to Image via {CLIP} Inversion},
     booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
     year      = {2025},
+}
+
+@Misc{github_novic,
+    title = {{NOVIC}: {U}nconstrained Open Vocabulary Image Classification},
+    author = {Philipp Allgeuer and Kyra Ahrens},
+    url = {https://github.com/pallgeuer/novic},
+}
 ```
