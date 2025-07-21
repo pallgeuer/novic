@@ -3,6 +3,7 @@ body {
 }
 
 .section {
+  --bulma-section-padding: 2rem 2rem;
   --bulma-section-padding-desktop: 2rem 2rem;
 }
 
@@ -32,6 +33,7 @@ body {
 
 h2.title {
   font-size: clamp(1.25rem, 2vw + 0.625rem, 2.0rem);
+  margin-top: 1rem;
 }
 
 .teaser .hero-body {
@@ -131,6 +133,10 @@ h2.title {
   margin-bottom: 1rem;
 }
 
+.content img.tight-bottom {
+  margin-bottom: 0rem;
+}
+
 .columns {
   flex-wrap: wrap;
   overflow-x: hidden;
@@ -153,6 +159,23 @@ h2.title {
   display: block;
 }
 
+.adv-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.adv-card {
+  flex: 1 1 300px;
+  border: 2px solid #e6e6e6;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.adv-card b.keyword {
+  color: #ff3860;
+}
+
 .results-carousel {
   overflow: hidden;
 }
@@ -160,7 +183,7 @@ h2.title {
 .results-carousel .item {
   margin: 5px;
   overflow: hidden;
-  border: 1px solid #bbb;
+  border: 1px solid #ccc;
   border-radius: 10px;
   padding: 0;
   font-size: 0;

@@ -189,15 +189,61 @@
   <div class="container is-max-desktop">
 
     <div class="columns is-centered has-text-centered">
+      <div class="column is-full-width">
+        <h2 class="title">NOVIC is...</h2>
+        <div class="content">
+          <div class="adv-grid">
+            <div class="adv-card">
+              <b class="keyword">Generative</b><br>
+              Image classifications are produced directly as free-form text
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Prompt-free</b><br>
+              Does not require <b>any</b> input list of candidate classifications
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Text-only Trained</b><br>
+              No images are used at all during training, <b>only</b> synthetic text!
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Efficient</b><br>
+              Trains in 1-3 days on a single RTX A6000 (<b>fast</b> as no images required)
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Real-time</b><br>
+              26ms inference time per single image, or 7ms per image if batched
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Open Source</b><br>
+              Detailed GitHub repository with commands to reproduce results
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Open Vocabulary</b><br>
+              Trained using a full English dictionary of nouns (no core or prioritized vocabulary)
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Scalable</b><br>
+              Performance scales well with the performance of the underlying CLIP model
+            </div>
+            <div class="adv-card">
+              <b class="keyword">Reliable</b><br>
+              Achieves accurate <b>fine-grained</b> prediction scores up to 87.5% on arbitrary images
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered has-text-centered">
       <div class="column is-four-fifths">
         <h2 class="title">Live Demo</h2>
         <div class="content has-text-justified">
           <p>
-            Try out NOVIC yourself on your own images using the CPU-based <a href="https://huggingface.co/spaces/pallgeuer/novic" target="_blank">Hugging Face Spaces Live Demo</a>!
+            You can try out NOVIC yourself on your <b>own images</b> using the <a href="https://huggingface.co/spaces/pallgeuer/novic" target="_blank">Hugging Face Spaces Live Demo</a>! Alternatively, you can easily get started inferencing NOVIC yourself on a local GPU, using the <a href="https://hub.docker.com/r/pallgeuer/novic">pre-built NOVIC Docker image</a> and the associated <a href="https://github.com/pallgeuer/novic#inference-novic-yourself">compact instructions</a>.
           </p>
           <div class="publication-image">
             <a href="https://huggingface.co/spaces/pallgeuer/novic" target="_blank">
-              <img src="./static/images/novic_spaces.png" alt="Screenshot of live NOVIC model demo on Hugging Face Spaces">
+              <img class="tight-bottom" src="./static/images/novic_spaces.png" alt="Screenshot of live NOVIC model demo on Hugging Face Spaces">
             </a>
           </div>
         </div>
@@ -221,7 +267,7 @@
     </div>
 
     <div class="columns is-centered has-text-centered">
-      <div class="column is-four-fifths">
+      <div class="column is-full-width">
         <h2 class="title">Presentation Video</h2>
         <div class="publication-video">
           <iframe src="https://www.youtube.com/embed/vyR2QHUH9NY?rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
@@ -229,12 +275,7 @@
       </div>
     </div>
 
-  </div>
-</section>
-
-<section class="section" id="bibtex">
-  <div class="container is-max-desktop">
-    <div class="columns is-centered has-text-centered">
+    <div class="columns is-centered has-text-centered" id="bibtex">
       <div class="column is-full-width">
         <h2 class="title">BibTeX</h2>
         <div class="content has-text-justified">
@@ -253,6 +294,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </section>
 
