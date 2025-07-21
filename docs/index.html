@@ -187,21 +187,39 @@
 
 <section class="section">
   <div class="container is-max-desktop">
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title">Live Demo</h2>
+        <div class="content has-text-justified">
+          <p>
+            Try out NOVIC yourself on your own images using the CPU-based <a href="https://huggingface.co/spaces/pallgeuer/novic" target="_blank">Hugging Face Spaces Live Demo</a>!
+          </p>
+          <div class="publication-image">
+            <a href="https://huggingface.co/spaces/pallgeuer/novic" target="_blank">
+              <img src="./static/images/novic_spaces.png" alt="Screenshot of live NOVIC model demo on Hugging Face Spaces">
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="columns is-centered has-text-centered">
       <div class="column is-four-fifths">
         <h2 class="title">Approach</h2>
         <div class="content has-text-justified">
-          <img src="./static/images/novic.png" alt="Model training and inference architecture overview schematic">
+          <img src="./static/images/novic.png" alt="Model training and inference pipeline overview schematic">
           <p>
             <b>NOVIC</b> is an innovative u<b>N</b>constrained <b>O</b>pen <b>V</b>ocabulary <b>I</b>mage <b>C</b>lassifier that uses an autoregressive transformer to generatively output classification labels as language. Leveraging the extensive knowledge of CLIP models, NOVIC harnesses the embedding space to enable zero-shot transfer from pure text to images. Traditional CLIP models, despite their ability for open vocabulary classification, require an exhaustive prompt of potential class labels, restricting their application to images of known content or context. To address this, NOVIC uses an <i>object decoder</i> model that is trained on a large-scale 92M-target dataset of templated object noun sets and LLM-generated captions to always output the object noun in question. This effectively inverts the CLIP text encoder and allows textual object labels to be generated directly from image-derived embedding vectors, without requiring any a priori knowledge of the potential content of an image. NOVIC has been tested on a mix of manually and web-curated datasets, as well as standard image classification benchmarks, and achieves fine-grained prompt-free prediction scores of up to 87.5%, a strong result considering the model must work for any conceivable image and without any contextual clues.
           </p>
-          <img src="./static/images/object_decoder.png" alt="Model training and inference architecture overview schematic">
+          <img src="./static/images/object_decoder.png" alt="Object decoder model architecture overview schematic">
           <p>
             At the heart of the NOVIC architecture is the <i>object decoder</i>, which effectively inverts the CLIP text encoder, and learns to map CLIP embeddings to object noun classification labels in the form of tokenized text. During training, a synthetic text-only dataset is used to train the object decoder to map the CLIP text embeddings corresponding to templated/generated captions to the underlying target object nouns. During inference, zero-shot transfer is used to map CLIP image embeddings (as opposed to text embeddings) to predicted object nouns. The ability of the object decoder to generalize from text embeddings to image embeddings is non-trivial, as there is a huge modality gap between the two types of embeddings (for all CLIP models), with the embeddings in fact occupying two completely disjoint areas of the embedding space, with much gap in-between.
           </p>
         </div>
       </div>
     </div>
+
     <div class="columns is-centered has-text-centered">
       <div class="column is-four-fifths">
         <h2 class="title">Presentation Video</h2>
@@ -210,6 +228,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </section>
 

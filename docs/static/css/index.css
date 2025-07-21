@@ -110,6 +110,11 @@ h2.title {
   border-radius: 10px !important;
 }
 
+.publication-image img {
+  border: 2px solid #ccc;
+  border-radius: 5px !important;
+}
+
 .publication-video iframe {
   position: absolute;
   inset: 0;
@@ -122,8 +127,8 @@ h2.title {
 }
 
 .content img {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .columns {
