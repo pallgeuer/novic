@@ -184,6 +184,21 @@ h2.title {
   color: #ff3860;
 }
 
+.equal-height .column {
+  display: flex;
+  flex-direction: column;
+}
+
+.equal-height .card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.equal-height .card-content {
+  flex: 1 1 auto;
+}
+
 .slider-navigation-previous {
   background-color: #eee;
   border-color: #eee;
