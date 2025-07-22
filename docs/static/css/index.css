@@ -176,12 +176,34 @@ h2.title {
   color: #ff3860;
 }
 
+.slider-navigation-previous {
+  background-color: #eee;
+  border-color: #eee;
+}
+
+.slider-navigation-next {
+  background-color: #eee;
+  border-color: #eee;
+}
+
+.slider-pagination .slider-page {
+  background-color: #eee;
+  border-color: #eee;
+}
+
+.slider-pagination .slider-page.is-active {
+  background-color: #aaa;
+  border-color: #aaa;
+}
+
 .results-carousel {
   overflow: hidden;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
 .results-carousel .item {
-  margin: 5px;
+  margin: 0px;
   overflow: hidden;
   border: 1px solid #ccc;
   border-radius: 10px;
@@ -189,6 +211,22 @@ h2.title {
   font-size: 0;
 }
 
-.results-carousel video {
-  margin: 0;
+.results-carousel .item .results-carousel-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.results-carousel .item img.input-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.results-carousel .item img.output-pred {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 15px;
 }
