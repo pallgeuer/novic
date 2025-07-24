@@ -8,10 +8,10 @@
 
 **Main Author:** Philipp Allgeuer
 
-Code release corresponding to the [WACV 2025 paper](https://www.arxiv.org/abs/2407.11211) that is also on [Papers With Code](https://paperswithcode.com/paper/unconstrained-open-vocabulary-image):
+Code release corresponding to the [WACV 2025 NOVIC paper](https://pallgeuer.github.io/novic), that can also be found on [arXiv](https://www.arxiv.org/abs/2407.11211), [OpenAccess CVF](https://openaccess.thecvf.com/content/WACV2025/html/Allgeuer_Unconstrained_Open_Vocabulary_Image_Classification_Zero-Shot_Transfer_from_Text_to_WACV_2025_paper.html), and [Papers With Code](https://paperswithcode.com/paper/unconstrained-open-vocabulary-image):
 - **Homepage:** [https://pallgeuer.github.io/novic](https://pallgeuer.github.io/novic)
-- **Paper:** Philipp Allgeuer, Kyra Ahrens, and Stefan Wermter: *Unconstrained Open Vocabulary Image Classification: Zero-Shot Transfer from Text to Image via CLIP Inversion*, WACV 2025 [[Link]](https://openaccess.thecvf.com/content/WACV2025/html/Allgeuer_Unconstrained_Open_Vocabulary_Image_Classification_Zero-Shot_Transfer_from_Text_to_WACV_2025_paper.html) [[Citation]](#citation)
-- **Video:** [WACV 2025 presentation](https://youtu.be/vyR2QHUH9NY) (the [video file](doc/WACV2025_NOVIC_Presentation.mp4) is also available in the `doc` directory of this repository, along with the [paper PDF](doc/WACV2025_NOVIC.pdf) and [poster PDF](doc/WACV2025_NOVIC_Poster.pdf))
+- **Paper:** Philipp Allgeuer, Kyra Ahrens, and Stefan Wermter: *Unconstrained Open Vocabulary Image Classification: Zero-Shot Transfer from Text to Image via CLIP Inversion*, WACV 2025 [[arXiv]](https://www.arxiv.org/abs/2407.11211) [[CVF]](https://openaccess.thecvf.com/content/WACV2025/html/Allgeuer_Unconstrained_Open_Vocabulary_Image_Classification_Zero-Shot_Transfer_from_Text_to_WACV_2025_paper.html) [[Cite]](#citation)
+- **Video:** [WACV 2025 presentation](https://youtu.be/vyR2QHUH9NY) (the [presentation video file](doc/WACV2025_NOVIC_Presentation.mp4) is also available in the `doc` directory of this repository, along with the [paper PDF](doc/WACV2025_NOVIC.pdf) and [poster PDF](doc/WACV2025_NOVIC_Poster.pdf))
 
 > :bulb: **TL;DR:** Given an image and nothing else (i.e. no prompts or candidate labels), NOVIC can generate an accurate fine-grained textual classification label in *real-time*, with coverage of the vast majority of the English language.
 
@@ -40,11 +40,13 @@ export NOVIC=/path/to/novic  # <-- Set the path to the cloned NOVIC repository
 export WANDB_API_KEY=...     # <-- If you want to train a NOVIC model, the wandb account to use for logging
 docker run --rm --name novic -it --gpus all --network host --shm-size=8g -w /code --env WANDB_API_KEY --mount "type=bind,source=${NOVIC:=/NOVIC_is_unset},target=/code" --mount "type=bind,source=${NOVIC}/docker,target=/log" --mount "type=bind,source=${XDG_CACHE_HOME:-$HOME/.cache}/huggingface,target=/root/.cache/huggingface" --mount "type=bind,source=${XDG_CACHE_HOME:-$HOME/.cache}/clip,target=/root/.cache/clip" pallgeuer/novic:latest /bin/bash
 ```
+> :gear: If you wish to use CPU-based inference (e.g. if no GPU is available), simply remove `--gpus all` from the `docker run` command above!
+
 Inside the running Docker container you can then run the [infer.py](infer.py) script on [images of your choice](demo) (see also [Evaluation Datasets](#evaluation-datasets) for more systematic evaluation options):
 ```bash
 ./infer.py --checkpoint outputs/ovod_20240628_142131/ovod_chunk0433_20240630_235415.train --images demo/*.jpg
 ```
-Instructions for installation and local inference of the NOVIC model via `conda` (as opposed to [Docker instructions](#docker-environment)) are [provided below](#conda-environment), as well as how to [train](#run-scripts) and/or [reproduce](#checkpoint-details) the pretrained NOVIC models.
+Instructions for installation and local inference of the NOVIC model via `conda` (as opposed to [Docker instructions](#option-1-docker-environment)) are [provided below](#option-2-conda-environment), as well as how to [train](#run-scripts) and/or [reproduce](#checkpoint-details) the pretrained NOVIC models.
 
 As opposed to using the `infer.py` and/or `train.py` CLI scripts, you can alternatively perform inference of a NOVIC model manually in Python code as follows (refer to the `NOVICModel` class for more information and options):
 ```python
@@ -64,21 +66,21 @@ with model:
 
 ![NOVIC architecture](images/novic.png)
 
-NOVIC is an innovative uNconstrained Open Vocabulary Image Classifier that uses an autoregressive transformer to generatively output classification labels as language. Leveraging the extensive knowledge of CLIP models, NOVIC harnesses the embedding space to enable zero-shot transfer from pure text to images. Traditional CLIP models, despite their ability for open vocabulary classification, require an exhaustive prompt of potential class labels, restricting their application to images of known content or context. To address this, NOVIC uses an "object decoder" model that is trained on a large-scale 92M-target dataset of templated object noun sets and LLM-generated captions to always output the object noun in question. This effectively inverts the CLIP text encoder and allows textual object labels to be generated directly from image-derived embedding vectors, without requiring any a priori knowledge of the potential content of an image. NOVIC has been tested on a mix of manually and web-curated datasets, as well as standard image classification benchmarks, and achieves fine-grained prompt-free prediction scores of up to 87.5%, a strong result considering the model must work for any conceivable image and without any contextual clues.
+**NOVIC** is an innovative u**N**constrained **O**pen **V**ocabulary **I**mage **C**lassifier that uses an autoregressive transformer to generatively output classification labels as language. Leveraging the extensive knowledge of CLIP models, NOVIC harnesses the embedding space to enable **zero-shot transfer from pure text to images**. Traditional CLIP models, despite their ability for open vocabulary classification, require an exhaustive prompt of potential class labels, restricting their application to images of known content or context. To address this, NOVIC uses an **object decoder** model that is trained on a large-scale 92M-target dataset of templated object noun sets and LLM-generated captions to always output the object noun in question. This effectively inverts the CLIP text encoder and allows textual object labels to be generated directly from image-derived embedding vectors, without requiring any a priori knowledge of the potential content of an image. NOVIC has been tested on a mix of manually and web-curated datasets, as well as standard image classification benchmarks, and achieves **fine-grained prompt-free prediction scores of up to 87.5%**, a strong result considering the model must work for **any conceivable image and without any contextual clues**.
 
 ![Object decoder architecture](images/object_decoder.png)
 
-At the heart of the NOVIC architecture is the *object decoder*, which effectively inverts the CLIP text encoder, and learns to map CLIP embeddings to object noun classification labels in the form of tokenized text. During training, a synthetic text-only dataset is used to train the object decoder to map the CLIP text embeddings corresponding to templated/generated captions to the underlying target object nouns. During inference, zero-shot transfer is used to map CLIP image embeddings (as opposed to text embeddings) to predicted object nouns. The ability of the object decoder to generalize from text embeddings to image embeddings is non-trivial, as there is a huge modality gap between the two types of embeddings (for all CLIP models), with the embeddings in fact occupying two completely disjoint areas of the embedding space, with much gap in-between.
+At the heart of the NOVIC architecture is the **object decoder**, which effectively inverts the CLIP text encoder, and learns to map CLIP embeddings to object noun classification labels in the form of tokenized text. During training, a **synthetic text-only dataset** is used to train the object decoder to map the CLIP text embeddings corresponding to templated/generated captions to the underlying target object nouns. During inference, zero-shot transfer is used to map CLIP image embeddings (as opposed to text embeddings) to predicted object nouns. The ability of the object decoder to generalize from text embeddings to image embeddings is non-trivial, as there is a huge modality gap between the two types of embeddings (for all CLIP models), with the embeddings in fact occupying two completely disjoint areas of the embedding space, with much gap in-between.
 
 ## Installation
 
-An environment to inference, evaluate and train NOVIC models can be installed either via [Docker](#docker-environment) or [conda](#conda-environment).
+An environment to inference, evaluate and train NOVIC models can be installed either via [Docker](#option-1-docker-environment) or [conda](#option-2-conda-environment).
 
-### Docker Environment
+### Option 1: Docker Environment
 
-The safest and most sandboxed way of running the NOVIC code is using a Docker environment. Note that an [NVIDIA driver](https://github.com/pallgeuer/model_testbed#nvidia-driver) and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) are required in order to make use of GPU acceleration in Docker containers.
+The safest and most sandboxed way of running the NOVIC code is using a Docker environment. Note that an [NVIDIA driver](https://github.com/pallgeuer/model_testbed#nvidia-driver) and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) are required in order to make use of GPU acceleration in Docker containers, in combination with `--gpus all` being added to the `docker run` command. If no GPU acceleration is desired, ensure `--gpus all` is not used when running a Docker container.
 
-#### Option 1: Pull a Docker Image from Docker Hub
+#### Variant A: Pull a Docker Image from Docker Hub
 
 You can conveniently pull a pre-built NOVIC Docker image from the `pallgeuer/novic` [Docker Hub page](https://hub.docker.com/r/pallgeuer/novic):
 ```bash
@@ -87,7 +89,7 @@ docker images
 ```
 The image with digest `1f6da11` is in fact the exact image that was used to train the provided [NOVIC checkpoints](#model-checkpoints). You can then run the Docker image as illustrated in the [Inference Guide](#inference-novic-yourself).
 
-#### Option 2: Build a Docker Image from Source
+#### Variant B: Build a Docker Image from Source
 
 You can build a NOVIC Docker image yourself based on `docker/Dockerfile` as follows:
 ```bash
@@ -106,7 +108,7 @@ docker image prune            # <-- Removes unused dangling images (images with 
 docker system prune           # <-- Removes all unused containers, networks, images (dangling only), and build cache
 ```
 
-### Conda Environment
+### Option 2: Conda Environment
 
 As an alternative to Docker, create a conda environment `novic` for the project (install [Miniconda](https://docs.anaconda.com/miniconda/install/) if you don't have either Miniconda or Anaconda yet, and we heavily recommend enabling the [libmamba solver](https://www.anaconda.com/blog/a-faster-conda-for-a-growing-community)):
 ```bash
@@ -246,6 +248,8 @@ export NOVIC=/path/to/novic  # <-- Set the path to the cloned NOVIC repository
 export WANDB_API_KEY=...     # <-- If you want to train a NOVIC model, the wandb account to use for logging
 docker run --rm --name novic -it --gpus all --network host --shm-size=8g -w /code --env WANDB_API_KEY --env DATASETS=/datasets --mount "type=bind,source=$HOME/Datasets,target=/datasets" --mount "type=bind,source=${NOVIC:=/NOVIC_is_unset},target=/code" --mount "type=bind,source=${NOVIC}/docker,target=/log" --mount "type=bind,source=${XDG_CACHE_HOME:-$HOME/.cache}/huggingface,target=/root/.cache/huggingface" --mount "type=bind,source=${XDG_CACHE_HOME:-$HOME/.cache}/clip,target=/root/.cache/clip" pallgeuer/novic:latest /bin/bash
 ```
+> :gear: If you wish to use CPU-based inference (e.g. if no GPU is available), simply remove `--gpus all` from the `docker run` command above!
+
 If everything is set up and functioning correctly, you should get values very close to the following:
 
 | Model                                  | CIFAR10 | Food-101 | ImageNet-1K |
