@@ -1,11 +1,5 @@
 # NOVIC: Unconstrained Open Vocabulary Image Classification
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic?p=unconstrained-open-vocabulary-image)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-1)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-1?p=unconstrained-open-vocabulary-image)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-3)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-3?p=unconstrained-open-vocabulary-image)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/open-vocabulary-image-classification-on-ovic-2)](https://paperswithcode.com/sota/open-vocabulary-image-classification-on-ovic-2?p=unconstrained-open-vocabulary-image)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/unconstrained-open-vocabulary-image/image-classification-on-imagenet)](https://paperswithcode.com/sota/image-classification-on-imagenet?p=unconstrained-open-vocabulary-image)
-
 **Main Author:** Philipp Allgeuer
 
 Code release corresponding to the [WACV 2025 NOVIC paper](https://pallgeuer.github.io/novic), that can also be found on [arXiv](https://www.arxiv.org/abs/2407.11211), [OpenAccess CVF](https://openaccess.thecvf.com/content/WACV2025/html/Allgeuer_Unconstrained_Open_Vocabulary_Image_Classification_Zero-Shot_Transfer_from_Text_to_WACV_2025_paper.html), and [Papers With Code](https://paperswithcode.com/paper/unconstrained-open-vocabulary-image):
